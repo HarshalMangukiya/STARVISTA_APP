@@ -87,17 +87,25 @@ const AddPropertyScreen = ({ navigation }: any) => {
         return;
       }
 
+      console.log('🚀 Starting property save process...');
+      console.log(`👤 User ID: ${currentUser.uid}`);
+      console.log(`📸 Images to upload: ${selectedImages.length}`);
+
       // Upload images
+      console.log('📤 Step 1: Uploading images to Firebase Storage...');
       const imageUris = selectedImages.map((img) => img.uri);
       const imageUrls = await uploadImages(imageUris, currentUser.uid);
+      console.log(`✓ Successfully uploaded ${imageUrls.length} images`);
 
       // Save property to Firestore
+      console.log('💾 Step 2: Saving property to Firestore...');
       await saveProperty({
         propertyName: propertyName.trim(),
         address: address.trim(),
         imageUrls,
         ownerId: currentUser.uid,
       });
+      console.log('✓ Property saved successfully');
 
       Alert.alert('Success', 'Property saved successfully!', [
         {
@@ -111,9 +119,24 @@ const AddPropertyScreen = ({ navigation }: any) => {
           },
         },
       ]);
-    } catch (error) {
-      console.error('Error saving property:', error);
-      Alert.alert('Error', 'Failed to save property. Please try again.');
+    } catch (error: any) {
+      console.error('❌ Error saving property:', error);
+      const errorMessage = error?.message || 'Failed to save property. Please try again.';
+
+      // Show detailed error message
+      Alert.alert('Error', errorMessage, [
+        {
+          text: 'Dismiss',
+          style: 'default',
+        },
+        {
+          text: 'View Details',
+          onPress: () => {
+            console.log('Full error:', error);
+            Alert.alert('Error Details', JSON.stringify(error, null, 2));
+          },
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }

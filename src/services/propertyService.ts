@@ -20,6 +20,28 @@ export interface Property {
 }
 
 /**
+ * Get user-friendly error message from Firebase errors
+ */
+const getErrorMessage = (error: any): string => {
+  const errorCode = error?.code || error?.message || '';
+
+  if (errorCode.includes('permission-denied') || errorCode.includes('PERMISSION_DENIED')) {
+    return 'Permission denied. Please check Firebase Firestore and Storage security rules. Make sure your user can write to these services.';
+  }
+  if (errorCode.includes('network') || errorCode.includes('NETWORK')) {
+    return 'Network error. Please check your internet connection.';
+  }
+  if (errorCode.includes('not-found') || errorCode.includes('NOT_FOUND')) {
+    return 'Firebase resource not found. Please verify your Firebase configuration.';
+  }
+  if (errorCode.includes('unauthenticated') || errorCode.includes('UNAUTHENTICATED')) {
+    return 'You are not authenticated. Please sign in again.';
+  }
+
+  return error?.message || 'An error occurred. Please try again.';
+};
+
+/**
  * Upload image to Firebase Storage
  */
 export const uploadImage = async (
@@ -28,22 +50,35 @@ export const uploadImage = async (
   userId: string
 ): Promise<string> => {
   try {
+    console.log(`📤 Starting image upload: ${imageName}`);
+
     // Create a blob from the image URI
     const response = await fetch(imageUri);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+
     const blob = await response.blob();
+    console.log(`📦 Image blob size: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
 
     // Create storage reference
     const storageRef = ref(storage, `properties/${userId}/${imageName}`);
+    console.log(`🔗 Storage reference: properties/${userId}/${imageName}`);
 
     // Upload image
+    console.log('⬆️  Uploading to Firebase Storage...');
     await uploadBytes(storageRef, blob);
+    console.log('✓ Upload complete');
 
     // Get download URL
+    console.log('🔗 Getting download URL...');
     const downloadURL = await getDownloadURL(storageRef);
+    console.log('✓ Download URL obtained:', downloadURL.substring(0, 50) + '...');
+
     return downloadURL;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
+  } catch (error: any) {
+    console.error('❌ Error uploading image:', error);
+    throw new Error(`Image upload failed: ${getErrorMessage(error)}`);
   }
 };
 
@@ -55,6 +90,8 @@ export const uploadImages = async (
   userId: string
 ): Promise<string[]> => {
   try {
+    console.log(`📷 Uploading ${imageUris.length} images...`);
+
     const uploadPromises = imageUris.map((uri, index) => {
       const timestamp = Date.now();
       const imageName = `image_${timestamp}_${index}`;
@@ -62,9 +99,10 @@ export const uploadImages = async (
     });
 
     const imageUrls = await Promise.all(uploadPromises);
+    console.log(`✓ All ${imageUrls.length} images uploaded successfully`);
     return imageUrls;
-  } catch (error) {
-    console.error('Error uploading images:', error);
+  } catch (error: any) {
+    console.error('❌ Error uploading images:', error);
     throw error;
   }
 };
@@ -78,8 +116,11 @@ export const saveProperty = async (
   try {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      throw new Error('User not authenticated');
+      throw new Error('Not authenticated. Please sign in first.');
     }
+
+    console.log(`👤 Current user: ${currentUser.uid}`);
+    console.log(`🏠 Saving property: ${property.propertyName}`);
 
     const propertyData = {
       ...property,
@@ -87,11 +128,14 @@ export const saveProperty = async (
       createdAt: Timestamp.now(),
     };
 
+    console.log('💾 Writing to Firestore...');
     const docRef = await addDoc(collection(firestore, 'properties'), propertyData);
+    console.log(`✓ Property saved with ID: ${docRef.id}`);
+
     return docRef.id;
-  } catch (error) {
-    console.error('Error saving property:', error);
-    throw error;
+  } catch (error: any) {
+    console.error('❌ Error saving property:', error);
+    throw new Error(`Failed to save property: ${getErrorMessage(error)}`);
   }
 };
 
@@ -102,8 +146,10 @@ export const fetchUserProperties = async (): Promise<Property[]> => {
   try {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      throw new Error('User not authenticated');
+      throw new Error('Not authenticated');
     }
+
+    console.log(`🔍 Fetching properties for user: ${currentUser.uid}`);
 
     const q = query(
       collection(firestore, 'properties'),
@@ -120,9 +166,10 @@ export const fetchUserProperties = async (): Promise<Property[]> => {
       } as Property);
     });
 
+    console.log(`✓ Found ${properties.length} properties`);
     return properties;
-  } catch (error) {
-    console.error('Error fetching properties:', error);
+  } catch (error: any) {
+    console.error('❌ Error fetching properties:', error);
     throw error;
   }
 };
@@ -132,6 +179,8 @@ export const fetchUserProperties = async (): Promise<Property[]> => {
  */
 export const fetchAllProperties = async (): Promise<Property[]> => {
   try {
+    console.log('🔍 Fetching all properties...');
+
     const querySnapshot = await getDocs(collection(firestore, 'properties'));
     const properties: Property[] = [];
 
@@ -142,9 +191,10 @@ export const fetchAllProperties = async (): Promise<Property[]> => {
       } as Property);
     });
 
+    console.log(`✓ Found ${properties.length} total properties`);
     return properties;
-  } catch (error) {
-    console.error('Error fetching properties:', error);
+  } catch (error: any) {
+    console.error('❌ Error fetching properties:', error);
     throw error;
   }
 };
@@ -154,14 +204,14 @@ export const fetchAllProperties = async (): Promise<Property[]> => {
  */
 export const deleteImageFromStorage = async (imageUrl: string): Promise<void> => {
   try {
+    console.log('🗑️  Deleting image from storage...');
     // Extract the path from the URL
     // This is a simplified approach - adjust based on your storage structure
     const storageRef = ref(storage, imageUrl);
-    // Note: Firebase SDK doesn't have a direct deleteByUrl method
-    // You would need to store the path separately or parse the URL
-    console.warn('Image deletion requires storing file paths separately');
-  } catch (error) {
-    console.error('Error deleting image:', error);
+    console.warn('⚠️  Image deletion requires storing file paths separately');
+  } catch (error: any) {
+    console.error('❌ Error deleting image:', error);
     throw error;
   }
 };
+
