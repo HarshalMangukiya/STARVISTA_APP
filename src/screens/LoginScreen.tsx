@@ -21,9 +21,33 @@ const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const getFirebaseErrorMessage = (error: any): string => {
+    const errorCode = error?.code || error?.message || '';
+
+    // Handle common Firebase auth errors
+    if (errorCode.includes('configuration-not-found') || errorCode.includes('CONFIGURATION_NOT_FOUND')) {
+      return 'Firebase not configured. Make sure you:\n1. Downloaded google-services.json\n2. Placed it in android/app/\n3. Ran npm install\n4. Cleaned gradle cache';
+    }
+    if (errorCode.includes('user-not-found')) {
+      return 'No account found with this email. Please sign up first.';
+    }
+    if (errorCode.includes('wrong-password')) {
+      return 'Incorrect password. Please try again.';
+    }
+    if (errorCode.includes('email-already-in-use')) {
+      return 'This email is already registered. Please sign in instead.';
+    }
+    if (errorCode.includes('invalid-email')) {
+      return 'Invalid email address.';
+    }
+    if (errorCode.includes('weak-password')) {
+      return 'Password is too weak. Use at least 6 characters.';
+    }
+    if (errorCode.includes('network-request-failed')) {
+      return 'Network error. Please check your internet connection.';
+    }
+
+    return error?.message || 'An error occurred. Please try again.';
   };
 
   const handleSignUp = async () => {
@@ -47,8 +71,9 @@ const LoginScreen = () => {
       await createUserWithEmailAndPassword(auth, email, password);
       Alert.alert('Success', 'Account created successfully!');
     } catch (error: any) {
-      const errorMessage = error.message || 'Failed to create account';
+      const errorMessage = getFirebaseErrorMessage(error);
       Alert.alert('Sign Up Error', errorMessage);
+      console.error('Sign up error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -65,8 +90,9 @@ const LoginScreen = () => {
       await signInWithEmailAndPassword(auth, email, password);
       Alert.alert('Success', 'Logged in successfully!');
     } catch (error: any) {
-      const errorMessage = error.message || 'Failed to log in';
+      const errorMessage = getFirebaseErrorMessage(error);
       Alert.alert('Sign In Error', errorMessage);
+      console.error('Sign in error:', error);
     } finally {
       setIsLoading(false);
     }
