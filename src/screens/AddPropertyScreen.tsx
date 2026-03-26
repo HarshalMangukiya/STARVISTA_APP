@@ -66,10 +66,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
       Alert.alert('Validation Error', 'Please enter address');
       return false;
     }
-    if (selectedImages.length === 0) {
-      Alert.alert('Validation Error', 'Please select at least one image');
-      return false;
-    }
+    // Images are now OPTIONAL
     return true;
   };
 
@@ -91,11 +88,16 @@ const AddPropertyScreen = ({ navigation }: any) => {
       console.log(`👤 User ID: ${currentUser.uid}`);
       console.log(`📸 Images to upload: ${selectedImages.length}`);
 
-      // Upload images
-      console.log('📤 Step 1: Uploading images to Firebase Storage...');
-      const imageUris = selectedImages.map((img) => img.uri);
-      const imageUrls = await uploadImages(imageUris, currentUser.uid);
-      console.log(`✓ Successfully uploaded ${imageUrls.length} images`);
+      // Upload images only if selected
+      let imageUrls: string[] = [];
+      if (selectedImages.length > 0) {
+        console.log('📤 Step 1: Uploading images to Firebase Storage...');
+        const imageUris = selectedImages.map((img) => img.uri);
+        imageUrls = await uploadImages(imageUris, currentUser.uid);
+        console.log(`✓ Successfully uploaded ${imageUrls.length} images`);
+      } else {
+        console.log('⏭️  Skipping image upload (no images selected)');
+      }
 
       // Save property to Firestore
       console.log('💾 Step 2: Saving property to Firestore...');
@@ -180,7 +182,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
 
       {/* Image Selection */}
       <View style={styles.section}>
-        <Text style={styles.label}>Upload Images</Text>
+        <Text style={styles.label}>Upload Images (Optional)</Text>
         <TouchableOpacity
           style={styles.imagePickerButton}
           onPress={handleSelectImages}
