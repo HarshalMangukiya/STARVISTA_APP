@@ -11,6 +11,7 @@ import {
   FlatList,
   ToastAndroid,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadPropertyImage, updateProperty } from '../services/propertyService';
 import { Property } from '../types';
@@ -221,15 +222,21 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
       <TouchableOpacity
         style={{
           marginHorizontal: 16,
-          marginVertical: 8,
-          padding: 10,
+          marginVertical: 10,
+          padding: 12,
           backgroundColor: '#f0f0f0',
-          borderRadius: 6,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: '#e0e0e0',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
         onPress={handleRunDiagnostics}
       >
-        <Text style={{ textAlign: 'center', fontSize: 12, color: '#666' }}>
-          🔍 Run Network Diagnostics
+        <Ionicons name="settings" size={16} color="#666" style={{ marginRight: 6 }} />
+        <Text style={{ textAlign: 'center', fontSize: 13, fontWeight: '600', color: '#666' }}>
+          Run Network Diagnostics
         </Text>
       </TouchableOpacity>
 
@@ -254,9 +261,12 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
           onPress={handleSelectImage}
           disabled={isLoading}
         >
-          <Text style={styles.imagePickerButtonText}>
-            {selectedImage ? 'Replace Image' : 'Add Image (0/1)'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="image" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.imagePickerButtonText}>
+              {selectedImage ? 'Replace Image' : 'Add Image (0/1)'}
+            </Text>
+          </View>
         </TouchableOpacity>
 
         {/* Single Image Preview */}
@@ -271,7 +281,7 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
               onPress={handleRemoveImage}
               disabled={isLoading}
             >
-              <Text style={styles.removeImageButtonText}>✕</Text>
+              <Ionicons name="close" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
         )}
@@ -299,7 +309,10 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
           onPress={handleCancel}
           disabled={isLoading}
         >
-          <Text style={styles.discardButtonText}>Cancel</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="close-outline" size={18} color="#555" style={{ marginRight: 6 }} />
+            <Text style={styles.discardButtonText}>Cancel</Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -310,7 +323,10 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
           {isLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.saveButtonText}>Update Property</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="checkmark-done" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.saveButtonText}>Update Property</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>

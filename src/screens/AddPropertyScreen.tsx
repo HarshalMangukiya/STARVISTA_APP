@@ -10,6 +10,7 @@ import {
   Alert,
   FlatList,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadPropertyImage, saveProperty, updateProperty } from '../services/propertyService';
 import { auth, serializeError } from '../config/firebase';
@@ -181,11 +182,11 @@ const AddPropertyScreen = ({ navigation }: any) => {
         <Text style={styles.label}>Property Name</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g., Star Hostel, City Hotel"
+          placeholder="Enter property name (e.g., Star Hostel)"
           value={propertyName}
           onChangeText={setPropertyName}
           editable={!isLoading}
-          placeholderTextColor="#999"
+          placeholderTextColor="#bbb"
         />
       </View>
 
@@ -197,9 +198,12 @@ const AddPropertyScreen = ({ navigation }: any) => {
           onPress={handleSelectImage}
           disabled={isLoading}
         >
-          <Text style={styles.imagePickerButtonText}>
-            {selectedImage ? 'Replace Image' : 'Add Image (0/1)'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="image" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.imagePickerButtonText}>
+              {selectedImage ? 'Replace Image' : 'Add Image (0/1)'}
+            </Text>
+          </View>
         </TouchableOpacity>
 
         {/* Single Image Preview */}
@@ -213,7 +217,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
               style={styles.removeImageButton}
               onPress={handleRemoveImage}
             >
-              <Text style={styles.removeImageButtonText}>✕</Text>
+              <Ionicons name="close" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
         )}
@@ -230,7 +234,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
           editable={!isLoading}
           multiline
           numberOfLines={3}
-          placeholderTextColor="#999"
+          placeholderTextColor="#bbb"
         />
       </View>
 
@@ -241,7 +245,10 @@ const AddPropertyScreen = ({ navigation }: any) => {
           onPress={handleDiscardDraft}
           disabled={isLoading}
         >
-          <Text style={styles.discardButtonText}>Discard Draft</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="trash-outline" size={18} color="#555" style={{ marginRight: 6 }} />
+            <Text style={styles.discardButtonText}>Discard</Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -252,7 +259,10 @@ const AddPropertyScreen = ({ navigation }: any) => {
           {isLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.saveButtonText}>Save Property</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="checkmark-done" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.saveButtonText}>Save Property</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>

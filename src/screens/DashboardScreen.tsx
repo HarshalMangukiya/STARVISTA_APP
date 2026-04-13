@@ -14,6 +14,7 @@ import {
   ToastAndroid,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { fetchUserProperties, deleteProperty } from '../services/propertyService';
 import { Property } from '../types';
 import styles from '../styles/styles';
@@ -159,7 +160,7 @@ const DashboardScreen = ({ navigation }: any) => {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#6366f1" />
       </View>
     );
   }
@@ -221,7 +222,10 @@ const DashboardScreen = ({ navigation }: any) => {
               onPress={handleEditPress}
               disabled={isDeleting}
             >
-              <Text style={styles.bottomSheetMenuItemText}>✏️ Edit Property</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="pencil" size={20} color="#6366f1" style={{ marginRight: 8 }} />
+                <Text style={styles.bottomSheetMenuItemText}>Edit Property</Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -229,7 +233,10 @@ const DashboardScreen = ({ navigation }: any) => {
               onPress={handleDeletePress}
               disabled={isDeleting}
             >
-              <Text style={styles.bottomSheetMenuItemText}>🗑️ Delete Property</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="trash" size={20} color="#ff3b30" style={{ marginRight: 8 }} />
+                <Text style={[styles.bottomSheetMenuItemText, { color: '#ff3b30' }]}>Delete Property</Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -237,7 +244,10 @@ const DashboardScreen = ({ navigation }: any) => {
               onPress={handleBottomSheetClose}
               disabled={isDeleting}
             >
-              <Text style={styles.bottomSheetMenuItemCancelText}>Cancel</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="close" size={20} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.bottomSheetMenuItemCancelText}>Cancel</Text>
+              </View>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

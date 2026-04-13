@@ -21,9 +21,6 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
   const navigationHook = useNavigation();
   const navigation = navigationHook || navigationProp;
   
-  console.log('✅✅✅ SIGNUP SCREEN COMPONENT IS LOADING ✅✅✅');
-  console.log('📱 SignupScreen mounted - navigation available:', !!navigation);
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,12 +30,10 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [securityKeyError, setSecurityKeyError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [debugMessage, setDebugMessage] = useState('');
 
   const { signup, error, clearError } = useAuth();
 
   useEffect(() => {
-    console.log('✅ SignupScreen useEffect mounted');
     clearError();
   }, [clearError]);
 
@@ -85,13 +80,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
   };
 
   const handleSignup = async () => {
-    console.log('👉 SIGNUP HANDLER CALLED');
-    console.log('📱 Email:', email);
-    console.log('🔐 Password length:', password?.length);
-    console.log('🔑 Security Key:', securityKey);
-    
     // Reset states
-    setDebugMessage('');
     clearError();
     
     // Validation
@@ -113,27 +102,19 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
     }
 
     setIsLoading(true);
-    setDebugMessage('🔄 Creating account...');
     
     try {
-      console.log('📝 Calling signup context function...');
-      
       // Call signup from context
       await signup(email, password, securityKey);
-      
-      console.log('✅ Signup context call completed successfully');
-      setDebugMessage('✅ Account created successfully!');
-      setIsLoading(false);
 
       // Show success alert and navigate
       Alert.alert(
-        '✅ Success!',
+        'Success!',
         'Your account has been created successfully.\nYou can now login with your email and password.',
         [
           {
             text: 'Go to Login',
             onPress: () => {
-              console.log('📲 Navigating to Login screen');
               // Clear form before navigating
               setEmail('');
               setPassword('');
@@ -148,12 +129,11 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
       );
 
     } catch (err: any) {
-      console.error('❌ Signup failed:', err);
+      console.error('Signup failed:', err);
       const message = err?.message || 'Signup failed. Please try again.';
-      setDebugMessage('❌ ' + message);
       setIsLoading(false);
       
-      Alert.alert('❌ Signup Failed', message, [
+      Alert.alert('Signup Failed', message, [
         { 
           text: 'Try Again'
         }
@@ -167,21 +147,10 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
     setSecurityKeyError('');
   };
 
-  console.log('✅✅✅ RENDERING SIGNUP SCREEN JSX ✅✅✅');
+  console.log('Rendering signup screen');
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={{ 
-        backgroundColor: '#FFD700', 
-        color: '#000', 
-        fontSize: 18, 
-        fontWeight: 'bold', 
-        padding: 20,
-        textAlign: 'center',
-        marginTop: 20,
-      }}>
-        🎉 SIGNUP SCREEN IS RENDERING! 🎉
-      </Text>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -199,13 +168,6 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
         <View style={styles.card}>
           {/* Error Box */}
           {error && <ErrorBox message={error} />}
-          
-          {/* Debug Message */}
-          {debugMessage && (
-            <View style={{ backgroundColor: '#e8f4f8', padding: 10, borderRadius: 8, marginBottom: 16 }}>
-              <Text style={{ color: '#0288d1', fontSize: 12, fontWeight: '500' }}>Debug: {debugMessage}</Text>
-            </View>
-          )}
 
           {/* Email Input */}
           <ModernInput
@@ -264,7 +226,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
               error={securityKeyError}
             />
             <Text style={styles.hintText}>
-              🔐 Create a 4-digit-4-digit security key. You'll need this to login.
+              Create a 4-digit-4-digit security key for login
             </Text>
           </View>
 
@@ -275,74 +237,16 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
               styles.signupButton,
               {
                 backgroundColor: isLoading ? '#9f7aea' : '#7c3aed',
-                paddingVertical: 16,
-                borderRadius: 12,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginTop: 20,
-                marginBottom: 12,
-                shadowColor: '#7c3aed',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.4,
-                shadowRadius: 8,
-                elevation: 5,
               }
             ]}
-            onPress={() => {
-              console.log('🔘 Signup button pressed!');
-              handleSignup();
-            }}
+            onPress={handleSignup}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 }}>
-                📝 Sign Up
-              </Text>
+              <Text style={styles.buttonText}>Sign Up</Text>
             )}
-          </TouchableOpacity>
-
-          {/* Test Button */}
-          <TouchableOpacity 
-            activeOpacity={0.7}
-            style={{
-              paddingVertical: 12,
-              borderRadius: 8,
-              backgroundColor: '#f0e6ff',
-              alignItems: 'center',
-              marginBottom: 16,
-              borderWidth: 2,
-              borderColor: '#7c3aed',
-            }}
-            onPress={async () => {
-              console.log('🧪 TEST BUTTON PRESSED');
-              setDebugMessage('🧪 Testing signup with pre-filled data...');
-              setIsLoading(true);
-              try {
-                console.log('🧪 Calling signup test with test data...');
-                await signup('test@staravista.com', 'TestPass123', '1234-5678');
-                console.log('🧪 Test signup successful!');
-                setDebugMessage('✅ TEST SUCCESS - Account created!');
-                setIsLoading(false);
-                Alert.alert('✅ Test Passed!', 'Signup works correctly! Now try with your own email.', [
-                  { text: 'OK' }
-                ]);
-              } catch (e: any) {
-                console.error('🧪 Test failed:', e);
-                const errorMsg = e?.message || 'Unknown error';
-                setDebugMessage('❌ TEST FAILED: ' + errorMsg);
-                setIsLoading(false);
-                Alert.alert('❌ Test Failed', errorMsg, [
-                  { text: 'Try Again' }
-                ]);
-              }
-            }}
-            disabled={isLoading}
-          >
-            <Text style={{ color: '#7c3aed', fontSize: 14, fontWeight: '600' }}>
-              🧪 Test Sign Up (with pre-filled data)
-            </Text>
           </TouchableOpacity>
 
           {/* Login Link */}
@@ -351,7 +255,6 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
             <TouchableOpacity 
               activeOpacity={0.6}
               onPress={() => {
-                console.log('👉 Login link pressed - navigating to Login');
                 navigation.navigate('Login' as never);
               }}
               style={{ paddingVertical: 4 }}
@@ -368,19 +271,19 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
             <View style={styles.featureBadge}>
               <Icon name="shield-check" size={18} color="#7c3aed" />
             </View>
-            <Text style={styles.featureText}>Secure Authentication</Text>
+            <Text style={styles.featureText}>Secure</Text>
           </View>
           <View style={styles.featureItem}>
             <View style={styles.featureBadge}>
               <Icon name="lock-smart" size={18} color="#7c3aed" />
             </View>
-            <Text style={styles.featureText}>Two-Factor Security</Text>
+            <Text style={styles.featureText}>Two-Factor</Text>
           </View>
           <View style={styles.featureItem}>
             <View style={styles.featureBadge}>
               <Icon name="cloud-check" size={18} color="#7c3aed" />
             </View>
-            <Text style={styles.featureText}>Data Protection</Text>
+            <Text style={styles.featureText}>Protected</Text>
           </View>
         </View>
       </ScrollView>
@@ -395,9 +298,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   headerSection: {
     alignItems: 'center',
@@ -426,14 +329,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   hintText: {
     fontSize: 12,
@@ -443,15 +346,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   signupButton: {
-    marginTop: 12,
-    marginBottom: 16,
+    paddingVertical: 14,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 12,
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },
@@ -469,8 +387,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: '#f0e6ff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 20,
+    gap: 16,
   },
   featureItem: {
     flex: 1,

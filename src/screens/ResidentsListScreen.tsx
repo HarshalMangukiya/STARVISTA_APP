@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,14 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { residentService } from '../services/residentService';
 import { Resident } from '../types';
 import { styles } from '../styles/styles';
+import {
+  categorizeResidents,
+  CategorizedResident,
+  ResidentCategory,
+  getCategoryLabel,
+  getCategoryColor,
+  formatCheckoutDays,
+} from '../utils/residentCategorization';
 
 interface ResidentsListScreenProps {
   route: any;
@@ -26,13 +34,73 @@ interface ResidentsListScreenProps {
 const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, navigation }) => {
   const { propertyId, propertyName } = route.params;
   const [residents, setResidents] = useState<Resident[]>([]);
+  const [categorizedResidents, setCategorizedResidents] = useState<CategorizedResident[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('All');
+  const [activeTab, setActiveTab] = useState<'All' | 'Paid' | 'Upcoming' | 'Pending'>('All');
   const [loading, setLoading] = useState(false);
 
   // Toast State for Undo
   const [toast, setToast] = useState<{ visible: boolean; resident: Resident | null }>({ visible: false, resident: null });
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dailyRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Categorize residents automatically on change
+  useEffect(() => {
+    const { all } = categorizeResidents(residents);
+    setCategorizedResidents(all);
+  }, [residents]);
+
+  // Fetch residents
+  const fetchResidents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await residentService.fetchPropertyResidents(propertyId);
+      setResidents(data);
+    } catch (error) {
+      console.error('Error fetching residents:', error);
+      Alert.alert('Error', 'Failed to load residents');
+    } finally {
+      setLoading(false);
+    }
+  }, [propertyId]);
+
+  // Set up daily refresh at midnight
+  useEffect(() => {
+    const setupDailyRefresh = () => {
+      // Calculate time until next midnight
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const timeUntilMidnight = tomorrow.getTime() - now.getTime();
+
+      // Schedule first refresh at midnight
+      const timeoutId = setTimeout(() => {
+        // Re-fetch and categorize residents at midnight
+        fetchResidents();
+
+        // Then refresh every 24 hours
+        if (dailyRefreshIntervalRef.current) {
+          clearInterval(dailyRefreshIntervalRef.current);
+        }
+        dailyRefreshIntervalRef.current = setInterval(() => {
+          fetchResidents();
+        }, 24 * 60 * 60 * 1000); // 24 hours
+      }, timeUntilMidnight);
+
+      return () => clearTimeout(timeoutId);
+    };
+
+    const cleanup = setupDailyRefresh();
+
+    return () => {
+      cleanup();
+      if (dailyRefreshIntervalRef.current) {
+        clearInterval(dailyRefreshIntervalRef.current);
+      }
+    };
+  }, [fetchResidents]);
 
   // Mark as Paid
   const handleMarkAsPaid = async (resident: Resident) => {
@@ -105,29 +173,15 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
     );
   };
 
-  // Fetch residents
-  const fetchResidents = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await residentService.fetchPropertyResidents(propertyId);
-      setResidents(data);
-    } catch (error) {
-      console.error('Error fetching residents:', error);
-      Alert.alert('Error', 'Failed to load residents');
-    } finally {
-      setLoading(false);
-    }
-  }, [propertyId]);
-
   useFocusEffect(
     useCallback(() => {
       fetchResidents();
     }, [fetchResidents])
   );
 
-  // Filter residents based on search and tab
+  // Filter residents based on search and category
   const filteredResidents = useMemo(() => {
-    let filtered = residents;
+    let filtered = categorizedResidents;
 
     // Apply search filter
     if (searchQuery) {
@@ -139,13 +193,13 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
       );
     }
 
-    // Apply status filter
+    // Apply category filter
     if (activeTab !== 'All') {
-      filtered = filtered.filter(r => r.paymentStatus === activeTab);
+      filtered = filtered.filter(r => r.category === activeTab);
     }
 
     return filtered;
-  }, [residents, searchQuery, activeTab]);
+  }, [categorizedResidents, searchQuery, activeTab]);
 
   const handleCall = (phoneNumber: string) => {
     const cleanNumber = phoneNumber.replace(/\D/g, '');
@@ -215,7 +269,7 @@ Thank you.`;
     });
   };
 
-  const renderResidentCard = ({ item }: { item: Resident }) => {
+  const renderResidentCard = ({ item }: { item: CategorizedResident }) => {
     const cardContent = (
       <Pressable
         onPress={() =>
@@ -243,38 +297,56 @@ Thank you.`;
               <Text style={styles.residentRoom}>
                 Room {item.roomNumber} • {item.roomType}
               </Text>
+              {/* Category and Days Display */}
+              <View style={{ marginTop: 8 }}>
+                <Text style={[styles.categoryStatusLabel, { color: getCategoryColor(item.category) }]}>
+                  {getCategoryLabel(item.category)}
+                </Text>
+                {item.daysUntilCheckOut !== undefined && (
+                  <Text style={[styles.categoryStatusValue, { color: '#666' }]}>
+                    {item.category === 'Upcoming' 
+                      ? `📅 Checkout: ${formatCheckoutDays(item.daysUntilCheckOut)}` 
+                      : formatCheckoutDays(item.daysUntilCheckOut)}
+                  </Text>
+                )}
+              </View>
             </View>
 
             <TouchableOpacity
               onPress={() => handleCall(item.mobileNumber)}
               style={styles.callButton}
             >
-              <Text style={styles.callButtonText}>📞</Text>
+              <Ionicons name="call" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.residentFooter}>
             <Text style={styles.rentText}>₹{item.rentAmount}/month</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {item.paymentStatus === 'Upcoming' && (
+              {item.category === 'Upcoming' && (
                 <TouchableOpacity
                   onPress={() => handleWhatsAppReminder(item)}
                   style={styles.whatsappButton}
                 >
-                  <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+                  <Ionicons name="logo-whatsapp" size={14} color="#fff" />
                   <Text style={styles.whatsappButtonText}>Reminder</Text>
                 </TouchableOpacity>
               )}
+              {/* Category Badge */}
               <View
                 style={[
                   styles.statusBadge,
                   {
-                    backgroundColor:
-                      item.paymentStatus === 'Paid'
-                        ? '#e8f5e9'
-                        : item.paymentStatus === 'Pending'
-                        ? '#fff3e0'
-                        : '#f3e5f5',
+                    backgroundColor: item.category === 'Paid' 
+                      ? '#10b981' 
+                      : item.category === 'Upcoming' 
+                      ? '#f59e0b' 
+                      : '#ef4444',
+                    borderColor: item.category === 'Paid' 
+                      ? '#059669' 
+                      : item.category === 'Upcoming' 
+                      ? '#d97706' 
+                      : '#dc2626',
                   },
                 ]}
               >
@@ -282,16 +354,11 @@ Thank you.`;
                   style={[
                     styles.statusBadgeText,
                     {
-                      color:
-                        item.paymentStatus === 'Paid'
-                          ? '#2e7d32'
-                          : item.paymentStatus === 'Pending'
-                          ? '#e65100'
-                          : '#6a1b9a',
+                      color: '#fff',
                     },
                   ]}
                 >
-                  {item.paymentStatus}
+                  {item.category === 'Paid' ? '✓ Paid' : item.category === 'Upcoming' ? '⏰ Due Soon' : '⚠ Overdue'}
                 </Text>
               </View>
             </View>
@@ -300,7 +367,7 @@ Thank you.`;
       </Pressable>
     );
 
-    if (item.paymentStatus === 'Pending' || item.paymentStatus === 'Upcoming') {
+    if (item.category === 'Pending' || item.category === 'Upcoming') {
       return (
         <Swipeable
           renderRightActions={renderRightActions}
@@ -328,12 +395,12 @@ Thank you.`;
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>{propertyName}</Text>
           <Text style={styles.headerSubtitle}>
-            Managing {residents.length} accommodations
+            Managing {categorizedResidents.length} residents
           </Text>
         </View>
       </View>
@@ -347,32 +414,39 @@ Thank you.`;
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons name="search" size={18} color="#6366f1" style={{ marginRight: 8 }} />
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        {['All', 'Paid', 'Upcoming', 'Pending'].map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[
-              styles.tab,
-              activeTab === tab && styles.activeTab,
-            ]}
-          >
-            <Text
+        {(['All', 'Paid', 'Upcoming', 'Pending'] as const).map((tab) => {
+          let count = 0;
+          if (tab === 'All') {
+            count = categorizedResidents.length;
+          } else {
+            count = categorizedResidents.filter(r => r.category === tab).length;
+          }
+          
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
               style={[
-                styles.tabText,
-                activeTab === tab && styles.activeTabText,
+                styles.tab,
+                activeTab === tab && styles.activeTab,
               ]}
             >
-              {tab === 'All'
-                ? `All (${residents.length})`
-                : `${tab} (${residents.filter(r => r.paymentStatus === tab).length})`}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab && styles.activeTabText,
+                ]}
+              >
+                {tab} ({count})
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Residents List */}
@@ -390,8 +464,8 @@ Thank you.`;
         />
       ) : (
         <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateEmoji}>👥</Text>
-          <Text style={styles.emptyStateTitle}>No residents found</Text>
+          <Ionicons name="people" size={72} color="#ddd" />
+          <Text style={[styles.emptyStateEmoji, { color: '#1a1a1a', marginTop: 16 }]}>No residents found</Text>
           <Text style={styles.emptyStateText}>
             {searchQuery ? 'Try adjusting your search' : 'Add your first resident to get started'}
           </Text>
@@ -415,7 +489,7 @@ Thank you.`;
         onPress={() => navigation.navigate('AddResident', { propertyId })}
         style={styles.fab}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={32} color="#fff" />
       </TouchableOpacity>
     </View>
   );

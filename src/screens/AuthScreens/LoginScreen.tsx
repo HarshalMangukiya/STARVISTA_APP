@@ -22,7 +22,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
   // Use the navigation hook as primary, fall back to prop
   const navigation = useNavigation();
   
-  console.log('📱 LoginScreen mounted - navigation available:', !!navigation);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [securityKey, setSecurityKey] = useState('');
@@ -36,7 +35,7 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
 
   useEffect(() => {
     clearError();
-  }, []);
+  }, [clearError]);
 
   const validateForm = (): boolean => {
     let isValid = true;
@@ -78,9 +77,7 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
 
     setIsLoading(true);
     try {
-      console.log('Attempting login with email:', email);
       await login(email, password, securityKey);
-      console.log('Login successful');
       // Navigation is handled by RootNavigator based on isSignedIn state
     } catch (err: any) {
       // Error is handled by context
@@ -173,27 +170,16 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
           <TouchableOpacity 
             activeOpacity={0.7}
             style={[
-              {
-                paddingVertical: 16,
-                borderRadius: 12,
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: isLoading || authIsLoading ? '#9f7aea' : '#7c3aed',
-                marginTop: 8,
-                marginBottom: 16,
-                shadowColor: '#7c3aed',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.4,
-                shadowRadius: 8,
-                elevation: 5,
-              },
               styles.loginButton,
+              {
+                backgroundColor: isLoading || authIsLoading ? '#9f7aea' : '#7c3aed',
+              }
             ]}
             onPress={handleLogin}
             disabled={isLoading || authIsLoading}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 }}>
-              {isLoading || authIsLoading ? '🔄 Logging in...' : '🔓 Login'}
+            <Text style={styles.buttonText}>
+              {isLoading || authIsLoading ? 'Logging In...' : 'Login'}
             </Text>
           </TouchableOpacity>
 
@@ -203,21 +189,7 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
             <TouchableOpacity 
               activeOpacity={0.6}
               onPress={() => {
-                try {
-                  console.log('👉 Sign Up link pressed');
-                  console.log('📱 Navigation object exists:', !!navigation);
-                  
-                  if (!navigation) {
-                    console.error('❌ ERROR: Navigation is undefined!');
-                    return;
-                  }
-                  
-                  console.log('✅ Calling navigation.navigate("Signup")');
-                  navigation.navigate('Signup' as never);
-                  console.log('✅ Navigation call succeeded');
-                } catch (error: any) {
-                  console.error('❌ ERROR:', error?.message || error);
-                }
+                navigation.navigate('Signup' as never);
               }}
               style={{ paddingVertical: 4 }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -225,12 +197,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
               <Text style={styles.signupLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Footer Info */}
-        <View style={styles.footer}>
-          <Icon name="information-outline" size={16} color="#95a5a6" />
-          <Text style={styles.footerText}>Your credentials are securely stored</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -244,8 +210,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   headerSection: {
     alignItems: 'center',
@@ -274,19 +241,19 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
-    marginBottom: 20,
-    marginTop: 4,
+    marginBottom: 18,
+    marginTop: 8,
   },
   forgotPasswordText: {
     color: '#7c3aed',
@@ -294,8 +261,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loginButton: {
-    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
     marginBottom: 16,
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   signupContainer: {
     flexDirection: 'row',
@@ -308,26 +290,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#e2e8f0',
   },
   signupText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#718096',
     fontWeight: '500',
   },
   signupLink: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#7c3aed',
     fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#95a5a6',
-    marginLeft: 6,
   },
 });
 
