@@ -1,11 +1,15 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import AddPropertyScreen from '../screens/AddPropertyScreen';
+import EditPropertyScreen from '../screens/EditPropertyScreen';
+import ResidentsListScreen from '../screens/ResidentsListScreen';
+import AddResidentScreen from '../screens/AddResidentScreen';
+import ResidentDetailsScreen from '../screens/ResidentDetailsScreen';
+import ProfileScreen from '../screens/AuthScreens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -21,9 +25,22 @@ const DashboardStackScreen = () => {
       <Stack.Screen
         name="AddProperty"
         component={AddPropertyScreen}
-        options={{
-          animationEnabled: true,
-        }}
+      />
+      <Stack.Screen
+        name="EditProperty"
+        component={EditPropertyScreen}
+      />
+      <Stack.Screen
+        name="ResidentsList"
+        component={ResidentsListScreen}
+      />
+      <Stack.Screen
+        name="AddResident"
+        component={AddResidentScreen}
+      />
+      <Stack.Screen
+        name="ResidentDetails"
+        component={ResidentDetailsScreen}
       />
     </Stack.Navigator>
   );
@@ -38,52 +55,47 @@ const ProfileStackScreen = () => {
     >
       <Stack.Screen
         name="ProfileScreen"
-        component={() => (
-          <Text style={{ marginTop: 20, textAlign: 'center' }}>
-            Profile Screen (Coming Soon)
-          </Text>
-        )}
+        component={ProfileScreen}
       />
     </Stack.Navigator>
   );
 };
 
-const RootNavigator = () => {
+export const RootNavigator = () => {
   return (
-    <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarLabel: route.name === 'Dashboard' ? 'Properties' : 'Profile',
-          tabBarActiveTintColor: '#007AFF',
-          tabBarInactiveTintColor: '#999',
-          tabBarStyle: {
-            backgroundColor: '#fff',
-            borderTopWidth: 1,
-            borderTopColor: '#e0e0e0',
-            paddingBottom: 6,
-            paddingTop: 6,
-          },
-        })}
-      >
-        <Tab.Screen
-          name="Dashboard"
-          component={DashboardStackScreen}
-          options={{
-            tabBarLabel: 'Properties',
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text>,
-          }}
-        />
-        <Tab.Screen
-          name="Profile"
-          component={ProfileStackScreen}
-          options={{
-            tabBarLabel: 'Profile',
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text>,
-          }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarLabel: route.name === 'Dashboard' ? 'Properties' : 'Profile',
+        tabBarActiveTintColor: '#7c3aed',
+        tabBarInactiveTintColor: '#95a5a6',
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#e0e0e0',
+          paddingBottom: 6,
+          paddingTop: 6,
+          height: 56,
+        },
+      })}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardStackScreen}
+        options={{
+          tabBarLabel: 'Properties',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStackScreen}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text>,
+        }}
+      />
+    </Tab.Navigator>
   );
 };
 

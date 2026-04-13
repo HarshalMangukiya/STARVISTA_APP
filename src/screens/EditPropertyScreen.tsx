@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,14 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  ToastAndroid,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { uploadPropertyImage, saveProperty, updateProperty } from '../services/propertyService';
+import { uploadPropertyImage, updateProperty } from '../services/propertyService';
+import { Property } from '../types';
 import { auth, serializeError } from '../config/firebase';
 import styles from '../styles/styles';
+import { runNetworkDiagnostics, testImageURI } from '../utils/networkUtils';
 
 interface ImageAsset {
   uri: string;
@@ -22,11 +25,29 @@ interface ImageAsset {
   isRemote?: boolean;
 }
 
-const AddPropertyScreen = ({ navigation }: any) => {
-  const [propertyName, setPropertyName] = useState('');
-  const [address, setAddress] = useState('');
+import { deleteImageFromStorage } from '../services/propertyService';
+
+const EditPropertyScreen = ({ route, navigation }: any) => {
+  const property: Property = route.params?.property;
+
+  const [propertyName, setPropertyName] = useState(property?.propertyName || '');
+  const [address, setAddress] = useState(property?.address || '');
   const [selectedImage, setSelectedImage] = useState<ImageAsset | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasExistingImage, setHasExistingImage] = useState(false);
+
+  useEffect(() => {
+    if (property?.imageUrls && property.imageUrls.length > 0) {
+      setSelectedImage({
+        uri: property.imageUrls[0],
+        isRemote: true,
+      });
+      setHasExistingImage(true);
+    } else {
+      setSelectedImage(null);
+      setHasExistingImage(false);
+    }
+  }, [property]);
 
   const handleSelectImage = () => {
     launchImageLibrary(
@@ -57,6 +78,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
 
   const handleRemoveImage = () => {
     setSelectedImage(null);
+    setHasExistingImage(false);
   };
 
   const validateInputs = (): boolean => {
@@ -68,11 +90,10 @@ const AddPropertyScreen = ({ navigation }: any) => {
       Alert.alert('Validation Error', 'Please enter address');
       return false;
     }
-    // Images are now OPTIONAL
     return true;
   };
 
-  const handleSaveProperty = async () => {
+  const handleUpdateProperty = async () => {
     if (!validateInputs()) {
       return;
     }
@@ -86,54 +107,61 @@ const AddPropertyScreen = ({ navigation }: any) => {
         return;
       }
 
-      console.log('🚀 Starting property save process...');
-      console.log(`👤 User ID: ${currentUser.uid}`);
-      console.log(`📸 Image to upload: ${selectedImage ? 1 : 0}`);
+      console.log('🚀 Starting property update process...', property.id);
+      console.log('📱 Device info check...');
+      console.log('   Selected image:', selectedImage?.uri?.substring(0, 60));
+      console.log('   Is remote:', selectedImage?.isRemote);
 
-      // Save property first to get ID, then upload image if selected
-      const propertyId = await saveProperty({
-        propertyName: propertyName.trim(),
-        address: address.trim(),
-        imageUrls: [],
-      });
+      let finalImageUrl: string | undefined = property.imageUrls ? property.imageUrls[0] : undefined;
 
-      // Upload image if selected
-      if (selectedImage) {
-        console.log('📤 Uploading image...');
-        const imageUrl = await uploadPropertyImage(propertyId, selectedImage.uri);
-        console.log('✓ Image uploaded');
+      // Check if new local image selected
+      if (selectedImage && !selectedImage.isRemote) {
+        console.log('📤 New local image detected, uploading to Cloudinary...');
+        console.log('   Image URI:', selectedImage.uri);
+        
+        try {
+          finalImageUrl = await uploadPropertyImage(property.id!, selectedImage.uri);
+          console.log('✅ Image upload completed successfully');
+          console.log('   Secure URL:', finalImageUrl);
+        } catch (uploadError: any) {
+          console.error('❌ Image upload failed:', uploadError);
+          console.error('   Error message:', uploadError?.message);
+          console.error('   Full error:', uploadError);
+          throw uploadError;
+        }
 
-        // Update property with imageUrls array
-        await updateProperty(propertyId, { imageUrls: [imageUrl] } as any);
-        console.log('✓ Property updated with image');
-      } else {
-        console.log('⏭️  No image uploaded');
+        // Optional: Delete old image if existed
+        if (property.imageUrls && property.imageUrls[0] !== finalImageUrl) {
+          deleteImageFromStorage(property.imageUrls[0]).catch(console.warn);
+        }
       }
 
-      console.log('✓ Property saved successfully');
+      console.log('💾 Updating property in Firestore...');
+      console.log('   Property ID:', property.id);
+      console.log('   Image URL:', finalImageUrl?.substring(0, 60) + '...');
+      
+      if (!property.id) throw new Error('Property ID is missing');
 
-      Alert.alert('Success', 'Property saved successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form and navigate back
-            setPropertyName('');
-            setAddress('');
-            setSelectedImage(null);
-            navigation.goBack();
-          },
-        },
-      ]);
+      await updateProperty(property.id!, {
+        propertyName: propertyName.trim(),
+        address: address.trim(),
+        imageUrls: finalImageUrl ? [finalImageUrl] : [],
+      });
+      console.log('✅ Property updated successfully in Firestore');
+
+      // Use a brief Toast message on success
+      ToastAndroid.show('Property updated successfully', ToastAndroid.SHORT);
+      
+      // Navigate back to Dashboard
+      navigation.goBack();
+
     } catch (error: any) {
-      console.error('❌ Error saving property:', error);
-      const errorMessage = error?.message || 'Failed to save property. Please try again.';
+      console.error('❌ Error updating property:', error);
+      console.error('   Error type:', error?.constructor?.name);
+      const errorMessage = error?.message || 'Failed to update property. Please try again.';
 
-      // Show detailed error message
       Alert.alert('Error', errorMessage, [
-        {
-          text: 'Dismiss',
-          style: 'default',
-        },
+        { text: 'Dismiss', style: 'default' },
         {
           text: 'View Details',
           onPress: () => {
@@ -153,28 +181,57 @@ const AddPropertyScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleDiscardDraft = () => {
-    Alert.alert('Discard Draft', 'Are you sure you want to discard this draft?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => {
-          setPropertyName('');
-          setAddress('');
-          setSelectedImage(null);
-          navigation.goBack();
-        },
-      },
-    ]);
+  const handleCancel = () => {
+    navigation.goBack();
+  };
+
+  const handleRunDiagnostics = async () => {
+    Alert.alert('Network Diagnostics', 'Running tests... Check console for details.');
+    
+    try {
+      // Run network diagnostics
+      const diagnostics = await runNetworkDiagnostics();
+      
+      // Test the selected image if one exists
+      if (selectedImage && !selectedImage.isRemote) {
+        console.log('\n📸 Testing selected image...');
+        const imageTest = await testImageURI(selectedImage.uri);
+        console.log('Image test result:', imageTest);
+      }
+
+      let summary = diagnostics.summary;
+      if (selectedImage && !selectedImage.isRemote) {
+        summary += '\n\n📸 Selected image: Accessible';
+      }
+
+      Alert.alert('Diagnostics Complete', summary);
+    } catch (error: any) {
+      Alert.alert('Diagnostic Error', error?.message || 'Diagnostics failed');
+    }
   };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>New Property</Text>
+        <Text style={styles.headerTitle}>Edit Property</Text>
       </View>
+
+      {/* Diagnostic Button (for debugging) */}
+      <TouchableOpacity
+        style={{
+          marginHorizontal: 16,
+          marginVertical: 8,
+          padding: 10,
+          backgroundColor: '#f0f0f0',
+          borderRadius: 6,
+        }}
+        onPress={handleRunDiagnostics}
+      >
+        <Text style={{ textAlign: 'center', fontSize: 12, color: '#666' }}>
+          🔍 Run Network Diagnostics
+        </Text>
+      </TouchableOpacity>
 
       {/* Property Name Input */}
       <View style={styles.section}>
@@ -191,7 +248,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
 
       {/* Image Selection */}
       <View style={styles.section}>
-        <Text style={styles.label}>Upload Image (Optional)</Text>
+        <Text style={styles.label}>Property Image (Optional)</Text>
         <TouchableOpacity
           style={styles.imagePickerButton}
           onPress={handleSelectImage}
@@ -212,6 +269,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
             <TouchableOpacity
               style={styles.removeImageButton}
               onPress={handleRemoveImage}
+              disabled={isLoading}
             >
               <Text style={styles.removeImageButtonText}>✕</Text>
             </TouchableOpacity>
@@ -238,21 +296,21 @@ const AddPropertyScreen = ({ navigation }: any) => {
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, styles.discardButton]}
-          onPress={handleDiscardDraft}
+          onPress={handleCancel}
           disabled={isLoading}
         >
-          <Text style={styles.discardButtonText}>Discard Draft</Text>
+          <Text style={styles.discardButtonText}>Cancel</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.saveButton]}
-          onPress={handleSaveProperty}
+          onPress={handleUpdateProperty}
           disabled={isLoading}
         >
           {isLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.saveButtonText}>Save Property</Text>
+            <Text style={styles.saveButtonText}>Update Property</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -262,4 +320,4 @@ const AddPropertyScreen = ({ navigation }: any) => {
   );
 };
 
-export default AddPropertyScreen;
+export default EditPropertyScreen;

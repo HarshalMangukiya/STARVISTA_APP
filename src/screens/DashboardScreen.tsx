@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,27 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
+  Animated,
+  PanResponder,
+  Dimensions,
+  ToastAndroid,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { fetchUserProperties } from '../services/propertyService';
-import { Property } from '../services/propertyService';
+import { fetchUserProperties, deleteProperty } from '../services/propertyService';
+import { Property } from '../types';
 import styles from '../styles/styles';
+
+const { height } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }: any) => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch properties when screen is focused
   useFocusEffect(
@@ -40,32 +51,99 @@ const DashboardScreen = ({ navigation }: any) => {
     }
   };
 
-  const renderPropertyCard = ({ item }: { item: Property }) => (
-    <TouchableOpacity
-      style={styles.propertyCard}
-      onPress={() =>
-        navigation.navigate('PropertyDetail', { property: item })
-      }
-    >
-      {/* Property Image */}
-      <Image
-        source={{ uri: item.imageUrls[0] || 'https://via.placeholder.com/300x200' }}
-        style={styles.propertyImage}
-      />
+  const handleLongPress = (propertyId: string) => {
+    setSelectedPropertyId(propertyId);
+    setShowBottomSheet(true);
+  };
 
-      {/* Property Info */}
-      <View style={styles.propertyInfo}>
-        <Text style={styles.propertyName} numberOfLines={1}>
-          {item.propertyName}
-        </Text>
-        <Text style={styles.propertyAddress} numberOfLines={2}>
-          {item.address}
-        </Text>
-        <Text style={styles.imageCount}>
-          {item.imageUrls.length} {item.imageUrls.length === 1 ? 'image' : 'images'}
-        </Text>
-      </View>
-    </TouchableOpacity>
+  const handleDeletePress = () => {
+    setShowBottomSheet(false);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleEditPress = () => {
+    setShowBottomSheet(false);
+    const selectedProperty = properties.find((p) => p.id === selectedPropertyId);
+    if (selectedProperty) {
+      navigation.navigate('EditProperty', { property: selectedProperty });
+    }
+    setSelectedPropertyId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedPropertyId) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteProperty(selectedPropertyId);
+
+      // Remove from list
+      setProperties((prev) =>
+        prev.filter((p) => p.id !== selectedPropertyId)
+      );
+
+      // Show success message
+      ToastAndroid.show('Property deleted successfully', ToastAndroid.SHORT);
+
+      // Close dialogs
+      setShowDeleteConfirm(false);
+      setSelectedPropertyId(null);
+    } catch (err: any) {
+      console.error('Error deleting property:', err);
+      Alert.alert(
+        'Delete Failed',
+        err?.message || 'Failed to delete property. Please try again.'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setSelectedPropertyId(null);
+  };
+
+  const handleBottomSheetClose = () => {
+    setShowBottomSheet(false);
+    setSelectedPropertyId(null);
+  };
+
+  const renderPropertyCard = ({ item }: { item: Property }) => (
+    <View>
+      <TouchableOpacity
+        style={styles.propertyCard}
+        onPress={() =>
+          navigation.navigate('ResidentsList', {
+            propertyId: item.id,
+            propertyName: item.propertyName,
+          })
+        }
+        onLongPress={() => handleLongPress(item.id!)}
+        delayLongPress={500}
+      >
+        {/* Property Image */}
+        <Image
+          source={{ uri: item.imageUrls?.[0] || (item as any).imageUrl || 'https://via.placeholder.com/300x200' }}
+          style={styles.propertyImage}
+        />
+
+        {/* Property Info */}
+        <View style={styles.propertyInfo}>
+          <Text style={styles.propertyName} numberOfLines={1}>
+            {item.propertyName}
+          </Text>
+          <Text style={styles.propertyAddress} numberOfLines={2}>
+            {item.address}
+          </Text>
+          <Text style={styles.imageCount}>
+            {(item.imageUrls && item.imageUrls.length > 0) || (item as any).imageUrl
+              ? `${item.imageUrls?.length || 1} image${(item.imageUrls?.length || 1) > 1 ? 's' : ''}`
+              : 'No image'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
   );
 
   const renderEmptyState = () => (
@@ -90,7 +168,7 @@ const DashboardScreen = ({ navigation }: any) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Properties</Text>
+        <Text style={styles.dashboardHeaderTitle}>My Properties</Text>
       </View>
 
       {/* Properties List */}
@@ -122,6 +200,91 @@ const DashboardScreen = ({ navigation }: any) => {
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      {/* Bottom Sheet - Delete Option Menu */}
+      <Modal
+        visible={showBottomSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={handleBottomSheetClose}
+      >
+        <TouchableOpacity
+          style={styles.bottomSheetOverlay}
+          activeOpacity={1}
+          onPress={handleBottomSheetClose}
+        >
+          <View style={styles.bottomSheetContent}>
+            <View style={styles.bottomSheetHandle} />
+            
+            <TouchableOpacity
+              style={styles.bottomSheetMenuItem}
+              onPress={handleEditPress}
+              disabled={isDeleting}
+            >
+              <Text style={styles.bottomSheetMenuItemText}>✏️ Edit Property</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.bottomSheetMenuItem}
+              onPress={handleDeletePress}
+              disabled={isDeleting}
+            >
+              <Text style={styles.bottomSheetMenuItemText}>🗑️ Delete Property</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.bottomSheetMenuItemCancel}
+              onPress={handleBottomSheetClose}
+              disabled={isDeleting}
+            >
+              <Text style={styles.bottomSheetMenuItemCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelDelete}
+      >
+        <View style={styles.confirmDialogOverlay}>
+          <View style={styles.confirmDialog}>
+            <Text style={styles.confirmDialogTitle}>Delete Property?</Text>
+            
+            <Text style={styles.confirmDialogMessage}>
+              Are you sure you want to delete this property? This action cannot be undone.
+            </Text>
+
+            <View style={styles.confirmDialogButtons}>
+              <TouchableOpacity
+                style={styles.confirmDialogButtonCancel}
+                onPress={handleCancelDelete}
+                disabled={isDeleting}
+              >
+                <Text style={styles.confirmDialogButtonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.confirmDialogButtonDelete,
+                  isDeleting && styles.confirmDialogButtonDisabled,
+                ]}
+                onPress={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.confirmDialogButtonDeleteText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

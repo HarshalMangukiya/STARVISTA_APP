@@ -1,21 +1,33 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import LoginScreen from '../screens/LoginScreen';
+import LoginScreen from '../screens/AuthScreens/LoginScreen';
+import SignupScreen from '../screens/AuthScreens/SignupScreen';
 
 const Stack = createNativeStackNavigator();
 
-const AuthNavigator = () => {
+export const AuthNavigator = () => {
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#f8fafc' },
+      }}
+    >
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{
+          animationTypeForReplace: 'pop',
         }}
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+      />
+      <Stack.Screen
+        name="Signup"
+        component={SignupScreen}
+        options={{
+          animation: 'fade',
+        }}
+      />
+    </Stack.Navigator>
   );
 };
 

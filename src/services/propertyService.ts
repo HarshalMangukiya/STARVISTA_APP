@@ -5,44 +5,72 @@ import {
   query,
   where,
   Timestamp,
+  getDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
+  FirebaseFirestoreTypes,
 } from '@react-native-firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from '@react-native-firebase/storage';
-import { auth, firestore, storage } from '../config/firebase';
-
-// Type definition
-export interface Property {
-  id?: string;
-  propertyName: string;
-  address: string;
-  imageUrls: string[];
-  ownerId: string;
-  createdAt: any;
-}
+import { auth, firestore, serializeError } from '../config/firebase';
+import { uploadImageToCloudinary, uploadMultipleImages as uploadMultipleCloudinary } from './cloudinaryService';
+import { Property } from '../types';
 
 /**
- * Get user-friendly error message from Firebase errors
+ * Get user-friendly error message from Firestore errors
  */
 const getErrorMessage = (error: any): string => {
   const errorCode = error?.code || error?.message || '';
+  const errorMessage = error?.message || '';
+
+  console.error('❌ Firestore Error Details:', {
+    code: error?.code,
+    message: errorMessage,
+    fullError: serializeError(error),
+  });
 
   if (errorCode.includes('permission-denied') || errorCode.includes('PERMISSION_DENIED')) {
-    return 'Permission denied. Please check Firebase Firestore and Storage security rules. Make sure your user can write to these services.';
+    return 'Permission denied. Please check Firestore security rules.';
   }
-  if (errorCode.includes('network') || errorCode.includes('NETWORK')) {
+  if (errorCode.includes('network') || errorCode.includes('NETWORK') || errorCode.includes('failed')) {
     return 'Network error. Please check your internet connection.';
   }
   if (errorCode.includes('not-found') || errorCode.includes('NOT_FOUND')) {
-    return 'Firebase resource not found. Please verify your Firebase configuration.';
+    return 'Resource not found. Please verify your Firestore configuration.';
   }
   if (errorCode.includes('unauthenticated') || errorCode.includes('UNAUTHENTICATED')) {
     return 'You are not authenticated. Please sign in again.';
   }
 
-  return error?.message || 'An error occurred. Please try again.';
+  return errorMessage || 'An error occurred. Please try again.';
 };
 
 /**
- * Upload image to Firebase Storage
+ * Upload single property image to Cloudinary
+ * Returns the secure_url for storage in Firestore
+ */
+export const uploadPropertyImage = async (
+  propertyId: string,
+  imageUri: string
+): Promise<string> => {
+  try {
+    console.log(`🚀 Uploading property image for propertyId: ${propertyId}`);
+
+    // Upload to Cloudinary (returns { url, public_id, secure_url })
+    const result = await uploadImageToCloudinary(imageUri, `property-${propertyId}`);
+
+    console.log(`✅ Image uploaded successfully`);
+    console.log(`   Public ID: ${result.public_id}`);
+    console.log(`   Secure URL: ${result.secure_url.substring(0, 80)}...`);
+
+    return result.secure_url; // Return the HTTPS URL for storage in Firestore
+  } catch (error: any) {
+    console.error('❌ Error uploading property image:', error);
+    throw error; // Re-throw with Cloudinary's error message
+  }
+};
+
+/**
+ * Upload image to Cloudinary with custom filename
  */
 export const uploadImage = async (
   imageUri: string,
@@ -50,57 +78,34 @@ export const uploadImage = async (
   userId: string
 ): Promise<string> => {
   try {
-    console.log(`📤 Starting image upload: ${imageName}`);
+    console.log(`📤 Uploading image: ${imageName} for user: ${userId}`);
 
-    // Create a blob from the image URI
-    const response = await fetch(imageUri);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.statusText}`);
-    }
+    const filename = `${userId}-${imageName}`;
+    const result = await uploadImageToCloudinary(imageUri, filename);
 
-    const blob = await response.blob();
-    console.log(`📦 Image blob size: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
-
-    // Create storage reference
-    const storageRef = ref(storage, `properties/${userId}/${imageName}`);
-    console.log(`🔗 Storage reference: properties/${userId}/${imageName}`);
-
-    // Upload image
-    console.log('⬆️  Uploading to Firebase Storage...');
-    await uploadBytes(storageRef, blob);
-    console.log('✓ Upload complete');
-
-    // Get download URL
-    console.log('🔗 Getting download URL...');
-    const downloadURL = await getDownloadURL(storageRef);
-    console.log('✓ Download URL obtained:', downloadURL.substring(0, 50) + '...');
-
-    return downloadURL;
+    console.log(`✅ Image uploaded: ${result.public_id}`);
+    return result.secure_url;
   } catch (error: any) {
     console.error('❌ Error uploading image:', error);
-    throw new Error(`Image upload failed: ${getErrorMessage(error)}`);
+    throw error;
   }
 };
 
 /**
- * Upload multiple images to Firebase Storage
+ * Upload multiple images to Cloudinary in parallel
  */
 export const uploadImages = async (
   imageUris: string[],
   userId: string
 ): Promise<string[]> => {
   try {
-    console.log(`📷 Uploading ${imageUris.length} images...`);
+    console.log(`📷 Uploading ${imageUris.length} images for user: ${userId}...`);
 
-    const uploadPromises = imageUris.map((uri, index) => {
-      const timestamp = Date.now();
-      const imageName = `image_${timestamp}_${index}`;
-      return uploadImage(uri, imageName, userId);
-    });
+    const results = await uploadMultipleCloudinary(imageUris);
+    const secureUrls = results.map((result) => result.secure_url);
 
-    const imageUrls = await Promise.all(uploadPromises);
-    console.log(`✓ All ${imageUrls.length} images uploaded successfully`);
-    return imageUrls;
+    console.log(`✅ Uploaded ${secureUrls.length} images successfully`);
+    return secureUrls;
   } catch (error: any) {
     console.error('❌ Error uploading images:', error);
     throw error;
@@ -111,7 +116,7 @@ export const uploadImages = async (
  * Save property to Firestore
  */
 export const saveProperty = async (
-  property: Omit<Property, 'id' | 'createdAt'>
+  property: Omit<Property, 'id' | 'createdAt' | 'ownerId'>
 ): Promise<string> => {
   try {
     const currentUser = auth.currentUser;
@@ -130,12 +135,13 @@ export const saveProperty = async (
 
     console.log('💾 Writing to Firestore...');
     const docRef = await addDoc(collection(firestore, 'properties'), propertyData);
-    console.log(`✓ Property saved with ID: ${docRef.id}`);
+    console.log(`✅ Property saved with ID: ${docRef.id}`);
 
     return docRef.id;
   } catch (error: any) {
     console.error('❌ Error saving property:', error);
-    throw new Error(`Failed to save property: ${getErrorMessage(error)}`);
+    const userMessage = getErrorMessage(error);
+    throw new Error(`Failed to save property: ${userMessage}`);
   }
 };
 
@@ -159,14 +165,14 @@ export const fetchUserProperties = async (): Promise<Property[]> => {
     const querySnapshot = await getDocs(q);
     const properties: Property[] = [];
 
-    querySnapshot.forEach((doc) => {
+    querySnapshot.forEach((docSnapshot) => {
       properties.push({
-        id: doc.id,
-        ...doc.data(),
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
       } as Property);
     });
 
-    console.log(`✓ Found ${properties.length} properties`);
+    console.log(`✅ Found ${properties.length} properties`);
     return properties;
   } catch (error: any) {
     console.error('❌ Error fetching properties:', error);
@@ -184,14 +190,14 @@ export const fetchAllProperties = async (): Promise<Property[]> => {
     const querySnapshot = await getDocs(collection(firestore, 'properties'));
     const properties: Property[] = [];
 
-    querySnapshot.forEach((doc) => {
+    querySnapshot.forEach((docSnapshot) => {
       properties.push({
-        id: doc.id,
-        ...doc.data(),
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
       } as Property);
     });
 
-    console.log(`✓ Found ${properties.length} total properties`);
+    console.log(`✅ Found ${properties.length} total properties`);
     return properties;
   } catch (error: any) {
     console.error('❌ Error fetching properties:', error);
@@ -200,18 +206,89 @@ export const fetchAllProperties = async (): Promise<Property[]> => {
 };
 
 /**
- * Delete image from Firebase Storage
+ * Delete property and image reference
+ * Note: Actual Cloudinary deletion handled separately via backend
  */
-export const deleteImageFromStorage = async (imageUrl: string): Promise<void> => {
+export const deleteProperty = async (propertyId: string): Promise<void> => {
   try {
-    console.log('🗑️  Deleting image from storage...');
-    // Extract the path from the URL
-    // This is a simplified approach - adjust based on your storage structure
-    const storageRef = ref(storage, imageUrl);
-    console.warn('⚠️  Image deletion requires storing file paths separately');
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Not authenticated. Please sign in first.');
+    }
+
+    console.log(`🗑️  Starting property deletion: ${propertyId}`);
+
+    // Fetch the property to get image URL
+    const propertyRef = doc(firestore, 'properties', propertyId);
+    const propertySnap = await getDoc(propertyRef) as FirebaseFirestoreTypes.DocumentSnapshot<Property>;
+    
+    const propertyData: Property | undefined = propertySnap.data();
+
+    // Log image info for reference (actual deletion via Cloudinary dashboard)
+    if (propertyData?.imageUrl) {
+      console.log('📷 Image reference: ' + propertyData.imageUrl.substring(0, 60) + '...');
+      console.log('    Note: To delete from Cloudinary, use dashboard');
+    }
+
+    // Delete property from Firestore
+    console.log('💾 Deleting property from Firestore...');
+    await deleteDoc(doc(firestore, 'properties', propertyId));
+    console.log(`✅ Property deleted successfully: ${propertyId}`);
   } catch (error: any) {
-    console.error('❌ Error deleting image:', error);
-    throw error;
+    console.error('❌ Error deleting property:', error);
+    throw new Error(`Failed to delete property: ${getErrorMessage(error)}`);
   }
 };
 
+/**
+ * Update existing property in Firestore
+ */
+export const updateProperty = async (
+  propertyId: string,
+  updates: Partial<Omit<Property, 'id' | 'createdAt' | 'ownerId'>>
+): Promise<void> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Not authenticated. Please sign in first.');
+    }
+
+    console.log(`🏠 Updating property ID: ${propertyId}`);
+    
+    const docRef = doc(firestore, 'properties', propertyId);
+    console.log('💾 Writing updates to Firestore...');
+    await updateDoc(docRef, updates);
+    console.log(`✅ Property updated successfully: ${propertyId}`);
+  } catch (error: any) {
+    console.error('❌ Error updating property:', error);
+    throw new Error(`Failed to update property: ${getErrorMessage(error)}`);
+  }
+};
+
+/**
+ * Get single property by ID
+ */
+export const getProperty = async (propertyId: string): Promise<Property | null> => {
+  try {
+    console.log(`🔍 Fetching property: ${propertyId}`);
+
+    const propertyRef = doc(firestore, 'properties', propertyId);
+    const propertySnap = await getDoc(propertyRef) as FirebaseFirestoreTypes.DocumentSnapshot<Property>;
+
+    if (!propertySnap.exists) {
+      console.log('⚠️  Property not found');
+      return null;
+    }
+
+    const property: Property = {
+      id: propertySnap.id,
+      ...propertySnap.data(),
+    } as Property;
+
+    console.log(`✅ Property fetched: ${property.propertyName}`);
+    return property;
+  } catch (error: any) {
+    console.error('❌ Error fetching property:', error);
+    throw error;
+  }
+};
