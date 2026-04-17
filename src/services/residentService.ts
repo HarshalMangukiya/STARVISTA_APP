@@ -35,7 +35,6 @@ export const residentService = {
             rentAmount: data.rentAmount || 0,
             startDate: data.startDate || '',
             endDate: data.endDate || '',
-            isPaid: data.isPaid || false,
             remarks: data.remarks || '',
             propertyId: propertyId,
             createdAt: data.createdAt,
@@ -75,7 +74,6 @@ export const residentService = {
             rentAmount: data.rentAmount || 0,
             startDate: data.startDate || '',
             endDate: data.endDate || '',
-            isPaid: data.isPaid || false,
             remarks: data.remarks || '',
             propertyId: propertyId,
             createdAt: data.createdAt,
@@ -104,7 +102,6 @@ export const residentService = {
         rentAmount: resident.rentAmount,
         startDate: resident.startDate,
         endDate: resident.endDate,
-        isPaid: resident.isPaid || false,
         remarks: resident.remarks || '',
         createdAt: Timestamp.now(),
       });
@@ -138,7 +135,6 @@ export const residentService = {
       if (updates.rentAmount !== undefined) updateData.rentAmount = updates.rentAmount;
       if (updates.startDate) updateData.startDate = updates.startDate;
       if (updates.endDate) updateData.endDate = updates.endDate;
-      if (updates.isPaid !== undefined) updateData.isPaid = updates.isPaid;
       if (updates.remarks) updateData.remarks = updates.remarks;
 
       await updateDoc(residentRef, updateData);

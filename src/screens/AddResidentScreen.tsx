@@ -46,7 +46,6 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
     rentAmount: isEditing && resident ? resident.rentAmount.toString() : '',
     startDate: isEditing && resident ? resident.startDate : '',
     endDate: isEditing && resident ? resident.endDate : '',
-    isPaid: isEditing && resident ? resident.isPaid : false,
     remarks: isEditing && resident ? (resident.remarks || '') : '',
   });
 
@@ -60,7 +59,7 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
   const genders = ['Male', 'Female', 'Other'];
   const roomNumbers = ['101', '102', '103', '104', '105', '201', '202', '203', '204'];
   const roomTypes = ['Single', 'Double', 'Triple', 'Shared'];
-  const paymentStatuses = ['Paid', 'Unpaid'] as const;
+  // const paymentStatuses = ['Paid', 'Unpaid'] as const;
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -167,7 +166,6 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
         rentAmount: parseFloat(formData.rentAmount),
         startDate: formData.startDate,
         endDate: formData.endDate,
-        isPaid: formData.isPaid,
         remarks: formData.remarks,
         propertyId,
       };
@@ -354,30 +352,7 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
             </View>
           </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Payment Status *</Text>
-            <View style={styles.segmentedControl}>
-              {paymentStatuses.map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  onPress={() => handleInputChange('isPaid', status === 'Paid')}
-                  style={[
-                    styles.segmentButton,
-                    (status === 'Paid' ? formData.isPaid : !formData.isPaid) && styles.segmentButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.segmentButtonText,
-                      (status === 'Paid' ? formData.isPaid : !formData.isPaid) && styles.segmentButtonTextActive,
-                    ]}
-                  >
-                    {status}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+            {/* Payment status determined by dates */}
         </View>
 
         {/* Remarks Section */}

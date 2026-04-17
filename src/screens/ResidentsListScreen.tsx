@@ -11,7 +11,10 @@ import {
   Linking,
   Animated,
   ScrollView,
+  Modal,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
@@ -40,8 +43,14 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
   const [activeTab, setActiveTab] = useState<'Pending' | 'Upcoming' | 'Paid' | 'All'>('Pending');
   const [loading, setLoading] = useState(false);
 
-  // Toast State for Undo
-  const [toast, setToast] = useState<{ visible: boolean; resident: Resident | null }>({ visible: false, resident: null });
+  // Renewal Modal State
+  const [renewalModalVisible, setRenewalModalVisible] = useState(false);
+  const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
+  const [newStartDate, setNewStartDate] = useState(new Date());
+  const [newEndDate, setNewEndDate] = useState(new Date());
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dailyRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -105,49 +114,40 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
 
   // Mark as Paid
   const handleMarkAsPaid = async (resident: Resident) => {
-    // Optimistic UI Update
-    setResidents(prev =>
-      prev.map(r => (r.id === resident.id ? { ...r, isPaid: true } : r))
-    );
+    setSelectedResident(resident);
+    setRenewalModalVisible(true);
+    
+    // Default to today for start date and 1 month from today for end date
+    const today = new Date();
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    
+    setNewStartDate(today);
+    setNewEndDate(nextMonth);
+  };
 
-    // Show Toast
-    setToast({ visible: true, resident });
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast({ visible: false, resident: null });
-    }, 4000);
+  const handleConfirmRenewal = async () => {
+    if (!selectedResident) return;
 
-    // Backend Update
     try {
-      await residentService.updateResident(propertyId, resident.id, { isPaid: true });
+      setLoading(true);
+      await residentService.updateResident(propertyId, selectedResident.id, {
+        startDate: newStartDate.toISOString().split('T')[0],
+        endDate: newEndDate.toISOString().split('T')[0],
+      });
+      
+      setRenewalModalVisible(false);
+      fetchResidents();
+      Alert.alert('Success', 'Resident renewed successfully');
     } catch (error) {
-      console.error('Error marking as paid:', error);
-      Alert.alert('Error', 'Failed to update payment status on server');
+      console.error('Error renewing resident:', error);
+      Alert.alert('Error', 'Failed to renew resident');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Undo Mark as Paid
-  const handleUndo = async () => {
-    if (!toast.resident) return;
-    const residentToUndo = toast.resident;
-
-    // Hide Toast
-    setToast({ visible: false, resident: null });
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-
-    // Revert Optimistic UI
-    setResidents(prev =>
-      prev.map(r => (r.id === residentToUndo.id ? { ...r, isPaid: residentToUndo.isPaid } : r))
-    );
-
-    // Revert Backend
-    try {
-      await residentService.updateResident(propertyId, residentToUndo.id, { isPaid: residentToUndo.isPaid });
-    } catch (error) {
-      console.error('Error undoing:', error);
-      Alert.alert('Error', 'Failed to undo payment status on server');
-    }
-  };
+  // Undo logic removed as it was tied to isPaid toggle
 
   // Render Swipe Actions
   const renderRightActions = (progress: any, dragX: any) => {
@@ -360,7 +360,7 @@ Thank you.`;
                     },
                   ]}
                 >
-                  {item.category === 'Paid' ? '✓ Paid' : item.category === 'Upcoming' ? '⏰ Due Soon' : '⚠ Overdue'}
+                  {item.category === 'Paid' ? '✓ Safe' : item.category === 'Upcoming' ? '⏰ Due Soon' : '⚠ Overdue'}
                 </Text>
               </View>
             </View>
@@ -480,17 +480,88 @@ Thank you.`;
         </View>
       )}
 
-      {/* Toast Notification */}
-      {toast.visible && toast.resident && (
-        <View style={styles.toastContainer}>
-          <Text style={styles.toastText} numberOfLines={1}>
-            Marked {toast.resident.studentName} as paid
-          </Text>
-          <TouchableOpacity onPress={handleUndo} style={styles.undoButton}>
-            <Text style={styles.undoText}>UNDO</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Renewal Modal */}
+      <Modal
+        visible={renewalModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRenewalModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setRenewalModalVisible(false)}
+        >
+          <View style={[styles.modalContent, { height: 450 }]}>
+            <View style={{ padding: 20 }}>
+              <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 20 }]}>
+                Renew Stay for {selectedResident?.studentName}
+              </Text>
+              
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>New Start Date</Text>
+                <TouchableOpacity 
+                  style={styles.dateButton} 
+                  onPress={() => setShowStartDatePicker(true)}
+                >
+                  <Text>{newStartDate.toLocaleDateString()}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>New End Date</Text>
+                <TouchableOpacity 
+                  style={styles.dateButton} 
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Text>{newEndDate.toLocaleDateString()}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ marginTop: 30, gap: 10 }}>
+                <TouchableOpacity 
+                  style={styles.saveButton} 
+                  onPress={handleConfirmRenewal}
+                >
+                  <Text style={styles.saveButtonText}>Confirm Renewal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.saveButton, { backgroundColor: '#ccc' }]} 
+                  onPress={() => setRenewalModalVisible(false)}
+                >
+                  <Text style={styles.saveButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {showStartDatePicker && (
+          <DateTimePicker
+            value={newStartDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowStartDatePicker(false);
+              if (date) setNewStartDate(date);
+            }}
+          />
+        )}
+
+        {showEndDatePicker && (
+          <DateTimePicker
+            value={newEndDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowEndDatePicker(false);
+              if (date) setNewEndDate(date);
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Toast removed */}
 
       {/* Floating Action Button */}
       <TouchableOpacity

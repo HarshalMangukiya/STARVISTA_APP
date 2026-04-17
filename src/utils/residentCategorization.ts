@@ -46,14 +46,12 @@ export const categorizeResidents = (
       const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
       daysUntilCheckOut = differenceInDays;
 
-      if (resident.isPaid) {
-        category = 'Paid';
+      if (differenceInDays <= 0) {
+        category = 'Pending';
+      } else if (differenceInDays <= 7) {
+        category = 'Upcoming';
       } else {
-        if (differenceInDays <= 0) {
-          category = 'Pending';
-        } else {
-          category = 'Upcoming';
-        }
+        category = 'Paid';
       }
     }
 
