@@ -33,17 +33,12 @@ export const categorizeResidents = (
   today.setHours(0, 0, 0, 0); // Normalize to start of day
 
   const categorizedAll: CategorizedResident[] = residents.map(resident => {
-    const checkInDate = convertToDate(resident.startDate);
     const checkOutDate = convertToDate(resident.endDate);
 
-    let category: ResidentCategory = 'Pending';
+    let category: ResidentCategory = 'Upcoming';
     let daysUntilCheckOut = 0;
 
-    if (checkInDate && checkOutDate) {
-      // Normalize check-in and check-out dates to midnight local time for accurate comparison
-      const normalizedCheckIn = new Date(checkInDate);
-      normalizedCheckIn.setHours(0, 0, 0, 0);
-      
+    if (checkOutDate) {
       const normalizedCheckOut = new Date(checkOutDate);
       normalizedCheckOut.setHours(0, 0, 0, 0);
 
@@ -51,17 +46,14 @@ export const categorizeResidents = (
       const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
       daysUntilCheckOut = differenceInDays;
 
-      // Priority 1: Check if checkout date has passed (Pending - Overdue Payment)
-      if (differenceInDays <= 0) {
-        category = 'Pending';
-      }
-      // Priority 2: Check if checkout is within next 7 days (Upcoming - Payment Follow-up Needed)
-      else if (differenceInDays > 0 && differenceInDays <= 7 && today >= normalizedCheckIn) {
-        category = 'Upcoming';
-      }
-      // Priority 3: Check if current date is between check-in and check-out with more than 7 days left (Paid - No Immediate Action)
-      else if (today >= normalizedCheckIn && today <= normalizedCheckOut) {
+      if (resident.isPaid) {
         category = 'Paid';
+      } else {
+        if (differenceInDays <= 0) {
+          category = 'Pending';
+        } else {
+          category = 'Upcoming';
+        }
       }
     }
 

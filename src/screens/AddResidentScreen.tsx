@@ -46,7 +46,7 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
     rentAmount: isEditing && resident ? resident.rentAmount.toString() : '',
     startDate: isEditing && resident ? resident.startDate : '',
     endDate: isEditing && resident ? resident.endDate : '',
-    paymentStatus: isEditing && resident ? resident.paymentStatus : ('Pending' as 'Paid' | 'Upcoming' | 'Pending'),
+    isPaid: isEditing && resident ? resident.isPaid : false,
     remarks: isEditing && resident ? (resident.remarks || '') : '',
   });
 
@@ -60,9 +60,9 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
   const genders = ['Male', 'Female', 'Other'];
   const roomNumbers = ['101', '102', '103', '104', '105', '201', '202', '203', '204'];
   const roomTypes = ['Single', 'Double', 'Triple', 'Shared'];
-  const paymentStatuses = ['Paid', 'Upcoming', 'Pending'] as const;
+  const paymentStatuses = ['Paid', 'Unpaid'] as const;
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -167,7 +167,7 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
         rentAmount: parseFloat(formData.rentAmount),
         startDate: formData.startDate,
         endDate: formData.endDate,
-        paymentStatus: formData.paymentStatus,
+        isPaid: formData.isPaid,
         remarks: formData.remarks,
         propertyId,
       };
@@ -360,16 +360,16 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
               {paymentStatuses.map((status) => (
                 <TouchableOpacity
                   key={status}
-                  onPress={() => handleInputChange('paymentStatus', status)}
+                  onPress={() => handleInputChange('isPaid', status === 'Paid')}
                   style={[
                     styles.segmentButton,
-                    formData.paymentStatus === status && styles.segmentButtonActive,
+                    (status === 'Paid' ? formData.isPaid : !formData.isPaid) && styles.segmentButtonActive,
                   ]}
                 >
                   <Text
                     style={[
                       styles.segmentButtonText,
-                      formData.paymentStatus === status && styles.segmentButtonTextActive,
+                      (status === 'Paid' ? formData.isPaid : !formData.isPaid) && styles.segmentButtonTextActive,
                     ]}
                   >
                     {status}

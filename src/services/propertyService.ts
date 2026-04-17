@@ -165,7 +165,7 @@ export const fetchUserProperties = async (): Promise<Property[]> => {
     const querySnapshot = await getDocs(q);
     const properties: Property[] = [];
 
-    querySnapshot.forEach((docSnapshot) => {
+    querySnapshot.forEach((docSnapshot: any) => {
       properties.push({
         id: docSnapshot.id,
         ...docSnapshot.data(),
@@ -190,7 +190,7 @@ export const fetchAllProperties = async (): Promise<Property[]> => {
     const querySnapshot = await getDocs(collection(firestore, 'properties'));
     const properties: Property[] = [];
 
-    querySnapshot.forEach((docSnapshot) => {
+    querySnapshot.forEach((docSnapshot: any) => {
       properties.push({
         id: docSnapshot.id,
         ...docSnapshot.data(),
@@ -225,8 +225,8 @@ export const deleteProperty = async (propertyId: string): Promise<void> => {
     const propertyData: Property | undefined = propertySnap.data();
 
     // Log image info for reference (actual deletion via Cloudinary dashboard)
-    if (propertyData?.imageUrl) {
-      console.log('📷 Image reference: ' + propertyData.imageUrl.substring(0, 60) + '...');
+    if (propertyData?.imageUrls && propertyData.imageUrls.length > 0) {
+      console.log('📷 Image reference: ' + propertyData.imageUrls[0].substring(0, 60) + '...');
       console.log('    Note: To delete from Cloudinary, use dashboard');
     }
 
@@ -290,5 +290,20 @@ export const getProperty = async (propertyId: string): Promise<Property | null> 
   } catch (error: any) {
     console.error('❌ Error fetching property:', error);
     throw error;
+  }
+};
+
+/**
+ * Delete image from storage placeholder
+ * Note: Cloudinary deletion is handled via backend for security.
+ * This function handles the reference cleanup intent and prevents app crashes.
+ */
+export const deleteImageFromStorage = async (imageUrl: string): Promise<void> => {
+  try {
+    console.log('🗑️ Image deletion requested for URL:', imageUrl);
+    // In a full implementation, you would extract the public_id from the URL
+    // and call a backend endpoint to delete it from Cloudinary.
+  } catch (error) {
+    console.warn('⚠️ Error in deleteImageFromStorage:', error);
   }
 };

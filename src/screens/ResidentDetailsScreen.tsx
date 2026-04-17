@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { residentService } from '../services/residentService';
 import { Resident } from '../types';
 import { styles } from '../styles/styles';
+import { categorizeResidents, getCategoryColor } from '../utils/residentCategorization';
 
 interface ResidentDetailsScreenProps {
   route: any;
@@ -116,6 +117,8 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
     }
   };
 
+  const category = resident ? categorizeResidents([resident]).all[0].category : 'Pending';
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -211,16 +214,16 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
           <View
             style={[
               styles.statusBadgeLarge,
-              { backgroundColor: getStatusBgColor(resident.paymentStatus) },
+              { backgroundColor: getStatusBgColor(category) },
             ]}
           >
             <Text
               style={[
                 styles.statusBadgeLargeText,
-                { color: getStatusColor(resident.paymentStatus) },
+                { color: getStatusColor(category) },
               ]}
             >
-              {resident.paymentStatus}
+              {category === 'Paid' ? 'Paid' : category === 'Pending' ? 'Unpaid' : 'Upcoming'}
             </Text>
           </View>
         </View>

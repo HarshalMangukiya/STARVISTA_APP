@@ -10,6 +10,7 @@ import {
   Alert,
   Linking,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -36,7 +37,7 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
   const [residents, setResidents] = useState<Resident[]>([]);
   const [categorizedResidents, setCategorizedResidents] = useState<CategorizedResident[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'All' | 'Paid' | 'Upcoming' | 'Pending'>('All');
+  const [activeTab, setActiveTab] = useState<'Pending' | 'Upcoming' | 'Paid' | 'All'>('Pending');
   const [loading, setLoading] = useState(false);
 
   // Toast State for Undo
@@ -106,7 +107,7 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
   const handleMarkAsPaid = async (resident: Resident) => {
     // Optimistic UI Update
     setResidents(prev =>
-      prev.map(r => (r.id === resident.id ? { ...r, paymentStatus: 'Paid' } : r))
+      prev.map(r => (r.id === resident.id ? { ...r, isPaid: true } : r))
     );
 
     // Show Toast
@@ -118,7 +119,7 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
 
     // Backend Update
     try {
-      await residentService.updateResident(propertyId, resident.id, { paymentStatus: 'Paid' });
+      await residentService.updateResident(propertyId, resident.id, { isPaid: true });
     } catch (error) {
       console.error('Error marking as paid:', error);
       Alert.alert('Error', 'Failed to update payment status on server');
@@ -136,12 +137,12 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
 
     // Revert Optimistic UI
     setResidents(prev =>
-      prev.map(r => (r.id === residentToUndo.id ? { ...r, paymentStatus: residentToUndo.paymentStatus } : r))
+      prev.map(r => (r.id === residentToUndo.id ? { ...r, isPaid: residentToUndo.isPaid } : r))
     );
 
     // Revert Backend
     try {
-      await residentService.updateResident(propertyId, residentToUndo.id, { paymentStatus: residentToUndo.paymentStatus });
+      await residentService.updateResident(propertyId, residentToUndo.id, { isPaid: residentToUndo.isPaid });
     } catch (error) {
       console.error('Error undoing:', error);
       Alert.alert('Error', 'Failed to undo payment status on server');
@@ -198,7 +199,8 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
       filtered = filtered.filter(r => r.category === activeTab);
     }
 
-    return filtered;
+    // Sort by days remaining (ascending)
+    return [...filtered].sort((a, b) => (a.daysUntilCheckOut || 0) - (b.daysUntilCheckOut || 0));
   }, [categorizedResidents, searchQuery, activeTab]);
 
   const handleCall = (phoneNumber: string) => {
@@ -213,13 +215,13 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
       Alert.alert('Error', 'Phone number is missing');
       return;
     }
-    
+
     // Ensure the phone number has a country code, e.g., +91, otherwise assume it
     let cleanNumber = resident.mobileNumber.replace(/\D/g, '');
     if (cleanNumber.length === 10) {
       cleanNumber = '91' + cleanNumber; // default to +91 if length is 10
     }
-    
+
     // Format the date if possible
     let dueDateStr = 'your upcoming due date';
     if (resident.endDate) {
@@ -304,8 +306,8 @@ Thank you.`;
                 </Text>
                 {item.daysUntilCheckOut !== undefined && (
                   <Text style={[styles.categoryStatusValue, { color: '#666' }]}>
-                    {item.category === 'Upcoming' 
-                      ? `📅 Checkout: ${formatCheckoutDays(item.daysUntilCheckOut)}` 
+                    {item.category === 'Upcoming'
+                      ? `📅 Checkout: ${formatCheckoutDays(item.daysUntilCheckOut)}`
                       : formatCheckoutDays(item.daysUntilCheckOut)}
                   </Text>
                 )}
@@ -337,16 +339,16 @@ Thank you.`;
                 style={[
                   styles.statusBadge,
                   {
-                    backgroundColor: item.category === 'Paid' 
-                      ? '#10b981' 
-                      : item.category === 'Upcoming' 
-                      ? '#f59e0b' 
-                      : '#ef4444',
-                    borderColor: item.category === 'Paid' 
-                      ? '#059669' 
-                      : item.category === 'Upcoming' 
-                      ? '#d97706' 
-                      : '#dc2626',
+                    backgroundColor: item.category === 'Paid'
+                      ? '#10b981'
+                      : item.category === 'Upcoming'
+                        ? '#f59e0b'
+                        : '#ef4444',
+                    borderColor: item.category === 'Paid'
+                      ? '#059669'
+                      : item.category === 'Upcoming'
+                        ? '#d97706'
+                        : '#dc2626',
                   },
                 ]}
               >
@@ -418,35 +420,41 @@ Thank you.`;
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        {(['All', 'Paid', 'Upcoming', 'Pending'] as const).map((tab) => {
-          let count = 0;
-          if (tab === 'All') {
-            count = categorizedResidents.length;
-          } else {
-            count = categorizedResidents.filter(r => r.category === tab).length;
-          }
-          
-          return (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[
-                styles.tab,
-                activeTab === tab && styles.activeTab,
-              ]}
-            >
-              <Text
+      <View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsContainer}
+        >
+          {(['Pending', 'Upcoming', 'Paid', 'All'] as const).map((tab) => {
+            let count = 0;
+            if (tab === 'All') {
+              count = categorizedResidents.length;
+            } else {
+              count = categorizedResidents.filter(r => r.category === tab).length;
+            }
+
+            return (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
                 style={[
-                  styles.tabText,
-                  activeTab === tab && styles.activeTabText,
+                  styles.tab,
+                  activeTab === tab && styles.activeTab,
                 ]}
               >
-                {tab} ({count})
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab && styles.activeTabText,
+                  ]}
+                >
+                  {tab} ({count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Residents List */}

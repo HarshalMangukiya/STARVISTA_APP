@@ -39,18 +39,22 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
 
   const validateForm = (): boolean => {
     let isValid = true;
+    
+    // Reset all errors first
     setEmailError('');
     setPasswordError('');
     setSecurityKeyError('');
 
+    // Email validation
     if (!email.trim()) {
-      setEmailError('Email is required');
+      setEmailError('Email address is required');
       isValid = false;
     } else if (!validateEmail(email)) {
-      setEmailError('Invalid email format');
+      setEmailError('Please enter a valid email address');
       isValid = false;
     }
 
+    // Password validation
     if (!password.trim()) {
       setPasswordError('Password is required');
       isValid = false;
@@ -59,11 +63,12 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
       isValid = false;
     }
 
+    // Security key validation
     if (!securityKey.trim()) {
-      setSecurityKeyError('Security Key is required');
+      setSecurityKeyError('Security key is required');
       isValid = false;
     } else if (!validateSecurityKey(securityKey)) {
-      setSecurityKeyError('Security key must be in format XXXX-XXXX');
+      setSecurityKeyError('Format must be XXXX-XXXX');
       isValid = false;
     }
 

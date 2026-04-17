@@ -216,7 +216,7 @@ const DashboardScreen = ({ navigation }: any) => {
         >
           <View style={styles.bottomSheetContent}>
             <View style={styles.bottomSheetHandle} />
-            
+
             <TouchableOpacity
               style={styles.bottomSheetMenuItem}
               onPress={handleEditPress}
@@ -263,7 +263,7 @@ const DashboardScreen = ({ navigation }: any) => {
         <View style={styles.confirmDialogOverlay}>
           <View style={styles.confirmDialog}>
             <Text style={styles.confirmDialogTitle}>Delete Property?</Text>
-            
+
             <Text style={styles.confirmDialogMessage}>
               Are you sure you want to delete this property? This action cannot be undone.
             </Text>

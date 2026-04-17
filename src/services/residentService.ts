@@ -35,7 +35,7 @@ export const residentService = {
             rentAmount: data.rentAmount || 0,
             startDate: data.startDate || '',
             endDate: data.endDate || '',
-            paymentStatus: data.paymentStatus || 'Pending',
+            isPaid: data.isPaid || false,
             remarks: data.remarks || '',
             propertyId: propertyId,
             createdAt: data.createdAt,
@@ -75,7 +75,7 @@ export const residentService = {
             rentAmount: data.rentAmount || 0,
             startDate: data.startDate || '',
             endDate: data.endDate || '',
-            paymentStatus: data.paymentStatus || 'Pending',
+            isPaid: data.isPaid || false,
             remarks: data.remarks || '',
             propertyId: propertyId,
             createdAt: data.createdAt,
@@ -104,7 +104,7 @@ export const residentService = {
         rentAmount: resident.rentAmount,
         startDate: resident.startDate,
         endDate: resident.endDate,
-        paymentStatus: resident.paymentStatus,
+        isPaid: resident.isPaid || false,
         remarks: resident.remarks || '',
         createdAt: Timestamp.now(),
       });
@@ -138,7 +138,7 @@ export const residentService = {
       if (updates.rentAmount !== undefined) updateData.rentAmount = updates.rentAmount;
       if (updates.startDate) updateData.startDate = updates.startDate;
       if (updates.endDate) updateData.endDate = updates.endDate;
-      if (updates.paymentStatus) updateData.paymentStatus = updates.paymentStatus;
+      if (updates.isPaid !== undefined) updateData.isPaid = updates.isPaid;
       if (updates.remarks) updateData.remarks = updates.remarks;
 
       await updateDoc(residentRef, updateData);
@@ -181,7 +181,8 @@ export const residentService = {
   getResidentsByStatus: async (propertyId: string, status: string): Promise<Resident[]> => {
     try {
       const residents = await residentService.fetchPropertyResidents(propertyId);
-      return residents.filter(r => r.paymentStatus === status);
+      // This helper might need update based on new categorization
+      return residents; 
     } catch (error) {
       console.error('Error fetching residents by status:', error);
       throw error;

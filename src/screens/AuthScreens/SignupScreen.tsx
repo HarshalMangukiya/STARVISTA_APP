@@ -20,7 +20,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
   // Use navigation hook as primary, fall back to prop
   const navigationHook = useNavigation();
   const navigation = navigationHook || navigationProp;
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,19 +39,23 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
 
   const validateForm = (): boolean => {
     let isValid = true;
+
+    // Reset all errors first
     setEmailError('');
     setPasswordError('');
     setConfirmPasswordError('');
     setSecurityKeyError('');
 
+    // Email validation
     if (!email.trim()) {
-      setEmailError('Email is required');
+      setEmailError('Email address is required');
       isValid = false;
     } else if (!validateEmail(email)) {
-      setEmailError('Invalid email format');
+      setEmailError('Please enter a valid email address');
       isValid = false;
     }
 
+    // Password validation
     if (!password.trim()) {
       setPasswordError('Password is required');
       isValid = false;
@@ -60,19 +64,21 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
       isValid = false;
     }
 
+    // Confirm password validation
     if (!confirmPassword.trim()) {
-      setConfirmPasswordError('Confirm password is required');
+      setConfirmPasswordError('Please confirm your password');
       isValid = false;
     } else if (password !== confirmPassword) {
       setConfirmPasswordError('Passwords do not match');
       isValid = false;
     }
 
+    // Security key validation
     if (!securityKey.trim()) {
-      setSecurityKeyError('Security Key is required');
+      setSecurityKeyError('Security key is required');
       isValid = false;
     } else if (!validateSecurityKey(securityKey)) {
-      setSecurityKeyError('Security key must be in format XXXX-XXXX');
+      setSecurityKeyError('Format must be XXXX-XXXX (8 digits)');
       isValid = false;
     }
 
@@ -80,29 +86,16 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
   };
 
   const handleSignup = async () => {
-    // Reset states
+    // Reset general error state
     clearError();
-    
-    // Validation
-    if (!email.trim()) {
-      setEmailError('Email is required');
-      return;
-    }
-    if (!password.trim()) {
-      setPasswordError('Password is required');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setConfirmPasswordError('Passwords must match');
-      return;
-    }
-    if (!securityKey.trim()) {
-      setSecurityKeyError('Security key is required');
+
+    // Check all fields at once
+    if (!validateForm()) {
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
       // Call signup from context
       await signup(email, password, securityKey);
@@ -130,14 +123,10 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
 
     } catch (err: any) {
       console.error('Signup failed:', err);
-      const message = err?.message || 'Signup failed. Please try again.';
+      // The error is already set in AuthContext by the signup function,
+      // which will display it in the ErrorBox component.
+      // We don't need a separate Alert.alert for technical/validation errors.
       setIsLoading(false);
-      
-      Alert.alert('Signup Failed', message, [
-        { 
-          text: 'Try Again'
-        }
-      ]);
     }
   };
 
@@ -231,7 +220,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
           </View>
 
           {/* Sign Up Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             activeOpacity={0.7}
             style={[
               styles.signupButton,
@@ -252,7 +241,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
           {/* Login Link */}
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already managing with us? </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => {
                 navigation.navigate('Login' as never);

@@ -18,7 +18,7 @@ export interface Resident {
   rentAmount: number;
   startDate: string;
   endDate: string;
-  paymentStatus: 'Paid' | 'Upcoming' | 'Pending';
+  isPaid: boolean;
   remarks?: string;
   profileImage?: string;
   isOnline?: boolean;
