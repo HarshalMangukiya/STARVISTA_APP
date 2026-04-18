@@ -11,6 +11,7 @@ import {
   FlatList,
   ToastAndroid,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadPropertyImage, updateProperty } from '../services/propertyService';
@@ -30,6 +31,7 @@ import { deleteImageFromStorage } from '../services/propertyService';
 
 const EditPropertyScreen = ({ route, navigation }: any) => {
   const property: Property = route.params?.property;
+  const insets = useSafeAreaInsets();
 
   const [propertyName, setPropertyName] = useState(property?.propertyName || '');
   const [address, setAddress] = useState(property?.address || '');
@@ -212,9 +214,14 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.statusBarShield, { height: insets.top, backgroundColor: '#fff' }]} />
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: insets.top }}
+      >
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: 10 }]}>
         <Text style={styles.headerTitle}>Edit Property</Text>
       </View>
 
@@ -332,7 +339,8 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
       </View>
 
       <View style={{ height: 20 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 

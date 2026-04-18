@@ -1,31 +1,17 @@
-import { initializeApp } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
-import { getFirestore } from '@react-native-firebase/firestore';
-import { getStorage } from '@react-native-firebase/storage';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import storage from '@react-native-firebase/storage';
 
-// Initialize Firebase App
-// On Android: Uses google-services.json from android/app/
-// On iOS: Uses GoogleService-Info.plist from iOS project
-let firebaseApp: any;
+// In React Native Firebase, the default app is initialized automatically
+// if google-services.json (Android) or GoogleService-Info.plist (iOS) are present.
 
-try {
-  firebaseApp = initializeApp();
-  console.log('✓ Firebase initialized successfully');
-  
-  // Log Firebase configuration for debugging
-  if (firebaseApp && firebaseApp.options) {
-    console.log('📱 Firebase Project ID:', firebaseApp.options.projectId);
-    console.log('🪣 Firebase Storage Bucket:', firebaseApp.options.storageBucket);
-  }
-} catch (error) {
-  console.error('✗ Firebase initialization error:', error);
-  // Continue anyway - some platforms might initialize later
-}
+// Export Firebase services directly
+const authInstance = auth();
+const firestoreInstance = firestore();
+const storageInstance = storage();
 
-// Export Firebase services
-export const auth = getAuth(firebaseApp);
-export const firestore = getFirestore(firebaseApp);
-export const storage = getStorage(firebaseApp);
+// Keep naming compatible
+export { authInstance as auth, firestoreInstance as firestore, storageInstance as storage };
 
 /**
  * Utility to properly serialize error objects for debugging
@@ -43,5 +29,4 @@ export const serializeError = (error: any): any => {
   return error;
 };
 
-export default firebaseApp;
-
+export default { auth: authInstance, firestore: firestoreInstance, storage: storageInstance };

@@ -14,7 +14,6 @@ export interface Resident {
   emailId: string;
   mobileNumber: string;
   roomNumber: string;
-  roomType: string;
   rentAmount: number;
   startDate: string;
   endDate: string;

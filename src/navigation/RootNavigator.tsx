@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import AddPropertyScreen from '../screens/AddPropertyScreen';
@@ -10,6 +11,7 @@ import ResidentsListScreen from '../screens/ResidentsListScreen';
 import AddResidentScreen from '../screens/AddResidentScreen';
 import ResidentDetailsScreen from '../screens/ResidentDetailsScreen';
 import ProfileScreen from '../screens/AuthScreens/ProfileScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,6 +59,10 @@ const ProfileStackScreen = () => {
         name="ProfileScreen"
         component={ProfileScreen}
       />
+      <Stack.Screen
+        name="HelpSupport"
+        component={HelpSupportScreen}
+      />
     </Stack.Navigator>
   );
 };
@@ -73,9 +79,6 @@ export const RootNavigator = () => {
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: '#e0e0e0',
-          paddingBottom: 6,
-          paddingTop: 6,
-          height: 56,
         },
       })}
     >
@@ -84,7 +87,9 @@ export const RootNavigator = () => {
         component={DashboardStackScreen}
         options={{
           tabBarLabel: 'Properties',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text>,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -92,7 +97,9 @@ export const RootNavigator = () => {
         component={ProfileStackScreen}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text>,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>

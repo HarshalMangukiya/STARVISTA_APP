@@ -14,6 +14,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
   },
+  statusBarShield: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+  },
 
   // Header
   header: {
@@ -550,7 +557,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'linear-gradient(135deg, #6366f1 0%, #8366f1 100%)',
+    backgroundColor: '#6366f1',
     paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 8,

@@ -31,7 +31,6 @@ export const residentService = {
             emailId: data.emailId || '',
             mobileNumber: data.mobileNumber || '',
             roomNumber: data.roomNumber || '',
-            roomType: data.roomType || '',
             rentAmount: data.rentAmount || 0,
             startDate: data.startDate || '',
             endDate: data.endDate || '',
@@ -70,7 +69,6 @@ export const residentService = {
             emailId: data.emailId || '',
             mobileNumber: data.mobileNumber || '',
             roomNumber: data.roomNumber || '',
-            roomType: data.roomType || '',
             rentAmount: data.rentAmount || 0,
             startDate: data.startDate || '',
             endDate: data.endDate || '',
@@ -98,7 +96,6 @@ export const residentService = {
         emailId: resident.emailId,
         mobileNumber: resident.mobileNumber,
         roomNumber: resident.roomNumber,
-        roomType: resident.roomType,
         rentAmount: resident.rentAmount,
         startDate: resident.startDate,
         endDate: resident.endDate,
@@ -131,7 +128,6 @@ export const residentService = {
       if (updates.emailId) updateData.emailId = updates.emailId;
       if (updates.mobileNumber) updateData.mobileNumber = updates.mobileNumber;
       if (updates.roomNumber) updateData.roomNumber = updates.roomNumber;
-      if (updates.roomType) updateData.roomType = updates.roomType;
       if (updates.rentAmount !== undefined) updateData.rentAmount = updates.rentAmount;
       if (updates.startDate) updateData.startDate = updates.startDate;
       if (updates.endDate) updateData.endDate = updates.endDate;

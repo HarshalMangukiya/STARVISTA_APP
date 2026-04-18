@@ -10,8 +10,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../context/AuthContext';
+import { auth } from '../../config/firebase';
+import { sendPasswordResetEmail } from '@react-native-firebase/auth';
 import { ModernInput, ModernCheckbox, ModernButton, ErrorBox } from '../../components/AuthComponents';
 import { validateEmail, validateSecurityKey, validatePassword } from '../../utils/validation';
 import { formatSecurityKey } from '../../utils/validation';
@@ -98,6 +101,29 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
     setSecurityKeyError('');
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Validation Error', 'Please enter your email address to reset password');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert('Validation Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert('Success', 'Password reset link sent! Please check your inbox and SPAM folder.');
+    } catch (err: any) {
+      console.error('Forgot password error:', err);
+      Alert.alert('Error', err?.message || 'Failed to send reset link. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -167,7 +193,11 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
           />
 
           {/* Forgot Password Link */}
-          <TouchableOpacity style={styles.forgotPasswordContainer}>
+          <TouchableOpacity 
+            style={styles.forgotPasswordContainer}
+            onPress={handleForgotPassword}
+            disabled={isLoading || authIsLoading}
+          >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 

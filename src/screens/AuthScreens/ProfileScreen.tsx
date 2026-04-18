@@ -8,11 +8,15 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../context/AuthContext';
+import { auth } from '../../config/firebase';
+import { sendPasswordResetEmail } from '@react-native-firebase/auth';
 
 const ProfileScreen = ({ navigation }: any) => {
   const { user, logout } = useAuth();
+  const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = () => {
@@ -22,7 +26,7 @@ const ProfileScreen = ({ navigation }: any) => {
       [
         {
           text: 'Cancel',
-          onPress: () => {},
+          onPress: () => { },
           style: 'cancel',
         },
         {
@@ -45,11 +49,39 @@ const ProfileScreen = ({ navigation }: any) => {
     );
   };
 
+  const handleChangePassword = () => {
+    if (!user?.email) return;
+
+    Alert.alert(
+      'Change Password',
+      `Send a password reset link to ${user.email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Link',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              await sendPasswordResetEmail(auth, user.email!);
+              Alert.alert('Success', 'Password reset email sent! Please check your inbox and SPAM folder.');
+            } catch (error: any) {
+              console.error('Password reset error:', error);
+              Alert.alert('Error', 'Failed to send reset link. Please try again.');
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <View style={[styles.statusBarShield, { height: insets.top, backgroundColor: '#fff' }]} />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.headerSection}>
+        <View style={[styles.headerSection, { paddingTop: insets.top + 10 }]}>
           <Text style={styles.headerTitle}>My Account</Text>
         </View>
 
@@ -65,26 +97,10 @@ const ProfileScreen = ({ navigation }: any) => {
           {/* User Info */}
           <View style={styles.userInfoContainer}>
             <Text style={styles.userName}>{user?.email || 'User'}</Text>
-            <Text style={styles.userRole}>✓ {user?.role || 'Property Owner'}</Text>
+            <Text style={styles.userRole}>{'Property Owner'}</Text>
           </View>
         </View>
 
-        {/* Membership Status Card */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Icon name="star" size={20} color="#7c3aed" />
-            <Text style={styles.sectionTitle}>Membership Status</Text>
-          </View>
-          <View style={styles.statusCard}>
-            <View style={styles.statusBadge}>
-              <Icon name="check-circle" size={24} color="#27ae60" />
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusTitle}>Active Member</Text>
-                <Text style={styles.statusDescription}>Your account is in good standing</Text>
-              </View>
-            </View>
-          </View>
-        </View>
 
         {/* Account Identity Card */}
         <View style={styles.section}>
@@ -101,21 +117,6 @@ const ProfileScreen = ({ navigation }: any) => {
               <Text style={styles.infoValue}>{user?.email}</Text>
             </View>
             <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <View style={styles.infoLabelContainer}>
-                <Icon name="account-tie" size={18} color="#95a5a6" />
-                <Text style={styles.infoLabel}>Account Type</Text>
-              </View>
-              <Text style={styles.infoValue}>{user?.role}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <View style={styles.infoLabelContainer}>
-                <Icon name="calendar-check" size={18} color="#95a5a6" />
-                <Text style={styles.infoLabel}>Account Status</Text>
-              </View>
-              <Text style={styles.infoValueSuccess}>Active</Text>
-            </View>
           </View>
         </View>
 
@@ -125,7 +126,11 @@ const ProfileScreen = ({ navigation }: any) => {
             <Icon name="lightning-bolt" size={20} color="#7c3aed" />
             <Text style={styles.sectionTitle}>Quick Actions</Text>
           </View>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleChangePassword}
+            disabled={isLoading}
+          >
             <View style={styles.actionIconContainer}>
               <Icon name="lock-reset" size={20} color="#7c3aed" />
             </View>
@@ -136,18 +141,10 @@ const ProfileScreen = ({ navigation }: any) => {
             <Icon name="chevron-right" size={20} color="#bdc3c7" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
-            <View style={styles.actionIconContainer}>
-              <Icon name="bell-outline" size={20} color="#7c3aed" />
-            </View>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Notifications</Text>
-              <Text style={styles.actionDescription}>Manage your notifications</Text>
-            </View>
-            <Icon name="chevron-right" size={20} color="#bdc3c7" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('HelpSupport')}
+          >
             <View style={styles.actionIconContainer}>
               <Icon name="help-circle-outline" size={20} color="#7c3aed" />
             </View>
@@ -177,7 +174,7 @@ const ProfileScreen = ({ navigation }: any) => {
           <Text style={styles.footerVersion}>Version 1.0.0</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -185,6 +182,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  statusBarShield: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
   },
   headerSection: {
     paddingHorizontal: 16,
@@ -251,30 +255,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1a202c',
     marginLeft: 8,
-  },
-  statusCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    justifyContent: 'center',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  statusTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1a202c',
-    marginBottom: 2,
-  },
-  statusDescription: {
-    fontSize: 12,
-    color: '#718096',
   },
   infoCard: {
     backgroundColor: '#fff',

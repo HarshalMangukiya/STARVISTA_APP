@@ -7,12 +7,19 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
+  FlatList,
+  Platform,
+  TextInput,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { residentService } from '../services/residentService';
 import { Resident } from '../types';
 import { styles } from '../styles/styles';
-import { categorizeResidents, getCategoryColor } from '../utils/residentCategorization';
+import { categorizeResidents } from '../utils/residentCategorization';
 
 interface ResidentDetailsScreenProps {
   route: any;
@@ -24,8 +31,31 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
   navigation,
 }) => {
   const { residentId, propertyId } = route.params;
+  const insets = useSafeAreaInsets();
   const [resident, setResident] = useState<Resident | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  // States for selection modals
+  const [showGenderModal, setShowGenderModal] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  // State for text edit modal (Android support)
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [textModalConfig, setTextModalConfig] = useState<{
+    title: string;
+    field: keyof Resident;
+    value: string;
+    keyboardType: any;
+  }>({
+    title: '',
+    field: 'studentName',
+    value: '',
+    keyboardType: 'default',
+  });
+
+  const genders = ['Male', 'Female', 'Other'];
 
   const fetchResident = useCallback(async () => {
     setLoading(true);
@@ -57,12 +87,41 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
     }
   };
 
-  const handleEdit = () => {
-    navigation.navigate('AddResident', {
-      propertyId,
-      resident,
-      isEditing: true,
+  const handleUpdateField = async (field: keyof Resident, value: string | number) => {
+    if (!resident) return;
+    
+    setUpdating(true);
+    try {
+      const updatedResident = await residentService.updateResident(propertyId, residentId, { [field]: value });
+      if (updatedResident) {
+        setResident(updatedResident);
+      }
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error);
+      Alert.alert('Error', `Failed to update ${field}`);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const promptEditText = (title: string, field: keyof Resident, currentValue: string, keyboardType: any = 'default') => {
+    setTextModalConfig({
+      title,
+      field,
+      value: currentValue,
+      keyboardType,
     });
+    setShowTextModal(true);
+  };
+
+  const onDateChange = (event: any, selectedDate: Date | undefined, field: 'startDate' | 'endDate') => {
+    if (field === 'startDate') setShowStartDatePicker(false);
+    else setShowEndDatePicker(false);
+
+    if (selectedDate && event.type !== 'dismissed') {
+      const dateString = selectedDate.toISOString().split('T')[0];
+      handleUpdateField(field, dateString);
+    }
   };
 
   if (loading) {
@@ -122,17 +181,15 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.detailsHeader}>
+      <View style={[styles.detailsHeader, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Resident Details</Text>
-        <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
-          <Text style={styles.editButtonText}>✏️</Text>
-        </TouchableOpacity>
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView
@@ -143,68 +200,95 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileAvatarLarge}>
-            <Text style={styles.profileAvatarLargeText}>
-              {resident.profileImage || '👤'}
-            </Text>
+            {resident.profileImage && resident.profileImage !== '👤' ? (
+              <Text style={styles.profileAvatarLargeText}>
+                {resident.profileImage}
+              </Text>
+            ) : (
+              <Ionicons name="person" size={50} color="#cbd5e1" />
+            )}
             {resident.isOnline && <View style={styles.onlineIndicatorLarge} />}
           </View>
 
-          <Text style={styles.profileName}>{resident.studentName}</Text>
-          <Text style={styles.profilePhone}>{resident.mobileNumber}</Text>
+          <TouchableOpacity 
+            style={{ paddingBottom: 4 }}
+            onPress={() => promptEditText('Name', 'studentName', resident.studentName)}
+          >
+            <Text style={styles.profileName}>{resident.studentName}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => promptEditText('Phone', 'mobileNumber', resident.mobileNumber, 'phone-pad')}
+          >
+            <Text style={styles.profilePhone}>{resident.mobileNumber}</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity onPress={handleCall} style={styles.callIconButton}>
-            <Text style={styles.callIconText}>📞</Text>
+            <Ionicons name="call" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* Identity Info Cards */}
         <View style={styles.infoCardsContainer}>
-          <View style={styles.infoCard}>
+          <TouchableOpacity 
+            style={styles.infoCard}
+            onPress={() => setShowGenderModal(true)}
+          >
             <Text style={styles.infoCardLabel}>Gender</Text>
             <Text style={styles.infoCardValue}>{resident.gender}</Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.infoCard}>
+          <TouchableOpacity 
+            style={styles.infoCard}
+            onPress={() => promptEditText('Email', 'emailId', resident.emailId, 'email-address')}
+          >
             <Text style={styles.infoCardLabel}>Email</Text>
             <Text style={[styles.infoCardValue, { fontSize: 12 }]}>{resident.emailId}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Placement Info Cards */}
         <View style={styles.infoCardsContainer}>
-          <View style={styles.infoCard}>
+          <TouchableOpacity 
+            style={styles.infoCard}
+            onPress={() => promptEditText('Room Number', 'roomNumber', resident.roomNumber, 'default')}
+          >
             <Text style={styles.infoCardLabel}>Room Number</Text>
             <Text style={styles.infoCardValue}>{resident.roomNumber}</Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.infoCard}>
-            <Text style={styles.infoCardLabel}>Room Type</Text>
-            <Text style={styles.infoCardValue}>{resident.roomType}</Text>
-          </View>
-
-          <View style={styles.infoCard}>
+          <TouchableOpacity 
+            style={styles.infoCard}
+            onPress={() => promptEditText('Rent Amount', 'rentAmount', resident.rentAmount.toString(), 'decimal-pad')}
+          >
             <Text style={styles.infoCardLabel}>Rent Amount</Text>
             <Text style={styles.infoCardValue}>₹{resident.rentAmount}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Stay Duration */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionCardTitle}>Stay Duration</Text>
           <View style={styles.durationRow}>
-            <View style={styles.durationField}>
+            <TouchableOpacity 
+              style={styles.durationField}
+              onPress={() => setShowStartDatePicker(true)}
+            >
               <Text style={styles.durationLabel}>Check-in</Text>
               <Text style={styles.durationDate}>
                 {formatDate(resident.startDate)}
               </Text>
-            </View>
+            </TouchableOpacity>
             <Text style={styles.durationArrow}>→</Text>
-            <View style={styles.durationField}>
+            <TouchableOpacity 
+              style={styles.durationField}
+              onPress={() => setShowEndDatePicker(true)}
+            >
               <Text style={styles.durationLabel}>Check-out</Text>
               <Text style={styles.durationDate}>
                 {formatDate(resident.endDate)}
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -229,12 +313,13 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
         </View>
 
         {/* Notes */}
-        {resident.remarks && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionCardTitle}>Notes</Text>
-            <Text style={styles.notesText}>{resident.remarks}</Text>
-          </View>
-        )}
+        <TouchableOpacity 
+          style={styles.sectionCard}
+          onPress={() => promptEditText('Notes', 'remarks', resident.remarks || '')}
+        >
+          <Text style={styles.sectionCardTitle}>Notes</Text>
+          <Text style={styles.notesText}>{resident.remarks || 'No notes added. Tap to add.'}</Text>
+        </TouchableOpacity>
 
         {/* Delete Button */}
         <TouchableOpacity
@@ -267,7 +352,129 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
 
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* Selection Modals */}
+      <SelectionModal
+        visible={showGenderModal}
+        title="Select Gender"
+        options={genders}
+        onSelect={(value: string) => {
+          handleUpdateField('gender', value);
+          setShowGenderModal(false);
+        }}
+        onClose={() => setShowGenderModal(false)}
+      />
+
+      {/* Date Pickers */}
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={resident.startDate ? new Date(resident.startDate) : new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event: any, date?: Date) => onDateChange(event, date, 'startDate')}
+        />
+      )}
+
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={resident.endDate ? new Date(resident.endDate) : new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event: any, date?: Date) => onDateChange(event, date, 'endDate')}
+        />
+      )}
+
+      {/* Text Edit Modal (Android Support) */}
+      <TextEditModal
+        visible={showTextModal}
+        config={textModalConfig}
+        onSave={(value: string) => {
+          handleUpdateField(textModalConfig.field, value);
+          setShowTextModal(false);
+        }}
+        onClose={() => setShowTextModal(false)}
+      />
+
+      {/* Updating Indicator Overlay */}
+      {updating && (
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.2)' }]}>
+          <ActivityIndicator size="large" color="#6366f1" />
+        </View>
+      )}
     </View>
+  );
+};
+
+// Helper Component for Selection Modals
+const SelectionModal = ({ visible, title, options, onSelect, onClose }: any) => (
+  <Modal visible={visible} transparent animationType="fade">
+    <TouchableOpacity
+      style={styles.modalOverlay}
+      onPress={onClose}
+      activeOpacity={1}
+    >
+      <View style={styles.modalContent}>
+        <Text style={[styles.sectionTitle, { marginBottom: 16, paddingHorizontal: 16, paddingTop: 16 }]}>{title}</Text>
+        <FlatList
+          data={options}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.modalItem}
+              onPress={() => onSelect(item)}
+            >
+              <Text style={styles.modalItemText}>{item}</Text>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item}
+        />
+      </View>
+    </TouchableOpacity>
+  </Modal>
+);
+
+// Helper Component for Text Editing (Cross-Platform)
+const TextEditModal = ({ visible, config, onSave, onClose }: any) => {
+  const [localValue, setLocalValue] = useState(config.value);
+
+  // Sync local value when config changes
+  React.useEffect(() => {
+    setLocalValue(config.value);
+  }, [config.value, visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        onPress={onClose}
+        activeOpacity={1}
+      >
+        <View style={[styles.modalContent, { padding: 20 }]}>
+          <Text style={styles.sectionTitle}>Edit {config.title}</Text>
+          <TextInput
+            style={[styles.input, { marginTop: 10 }]}
+            value={localValue}
+            onChangeText={setLocalValue}
+            placeholder={`Enter ${config.title.toLowerCase()}...`}
+            keyboardType={config.keyboardType}
+            autoFocus
+          />
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingBottom: 20 }}>
+            <TouchableOpacity 
+              style={[styles.button, styles.discardButton]} 
+              onPress={onClose}
+            >
+              <Text style={styles.discardButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: '#6366f1' }]} 
+              onPress={() => onSave(localValue)}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
   );
 };
 

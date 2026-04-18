@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { residentService } from '../services/residentService';
@@ -37,6 +38,7 @@ interface ResidentsListScreenProps {
 
 const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, navigation }) => {
   const { propertyId, propertyName } = route.params;
+  const insets = useSafeAreaInsets();
   const [residents, setResidents] = useState<Resident[]>([]);
   const [categorizedResidents, setCategorizedResidents] = useState<CategorizedResident[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +55,7 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
 
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dailyRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
   // Categorize residents automatically on change
   useEffect(() => {
@@ -136,6 +139,7 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
         endDate: newEndDate.toISOString().split('T')[0],
       });
       
+      closeActiveSwipeable();
       setRenewalModalVisible(false);
       fetchResidents();
       Alert.alert('Success', 'Resident renewed successfully');
@@ -144,6 +148,12 @@ const ResidentsListScreen: React.FC<ResidentsListScreenProps> = ({ route, naviga
       Alert.alert('Error', 'Failed to renew resident');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const closeActiveSwipeable = () => {
+    if (selectedResident) {
+      swipeableRefs.current.get(selectedResident.id)?.close();
     }
   };
 
@@ -289,7 +299,11 @@ Thank you.`;
         <View style={styles.residentCard}>
           <View style={styles.residentCardContent}>
             <View style={styles.residentAvatarContainer}>
-              <Text style={styles.residentAvatar}>{item.profileImage || '👤'}</Text>
+              {item.profileImage && item.profileImage !== '👤' ? (
+                <Text style={styles.residentAvatar}>{item.profileImage}</Text>
+              ) : (
+                <Ionicons name="person" size={24} color="#cbd5e1" />
+              )}
               {item.isOnline && <View style={styles.onlineIndicator} />}
             </View>
 
@@ -305,11 +319,16 @@ Thank you.`;
                   {getCategoryLabel(item.category)}
                 </Text>
                 {item.daysUntilCheckOut !== undefined && (
-                  <Text style={[styles.categoryStatusValue, { color: '#666' }]}>
-                    {item.category === 'Upcoming'
-                      ? `📅 Checkout: ${formatCheckoutDays(item.daysUntilCheckOut)}`
-                      : formatCheckoutDays(item.daysUntilCheckOut)}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {item.category === 'Upcoming' && (
+                      <Ionicons name="calendar-outline" size={12} color="#666" style={{ marginRight: 4 }} />
+                    )}
+                    <Text style={[styles.categoryStatusValue, { color: '#666' }]}>
+                      {item.category === 'Upcoming'
+                        ? `Checkout: ${formatCheckoutDays(item.daysUntilCheckOut)}`
+                        : formatCheckoutDays(item.daysUntilCheckOut)}
+                    </Text>
+                  </View>
                 )}
               </View>
             </View>
@@ -372,6 +391,13 @@ Thank you.`;
     if (item.category === 'Pending' || item.category === 'Upcoming') {
       return (
         <Swipeable
+          ref={(ref) => {
+            if (ref) {
+              swipeableRefs.current.set(item.id, ref);
+            } else {
+              swipeableRefs.current.delete(item.id);
+            }
+          }}
           renderRightActions={renderRightActions}
           onSwipeableOpen={(direction) => {
             if (direction === 'right') {
@@ -392,7 +418,7 @@ Thank you.`;
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.residentListHeader}>
+      <View style={[styles.residentListHeader, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -485,12 +511,18 @@ Thank you.`;
         visible={renewalModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setRenewalModalVisible(false)}
+        onRequestClose={() => {
+          closeActiveSwipeable();
+          setRenewalModalVisible(false);
+        }}
       >
         <TouchableOpacity 
           style={styles.modalOverlay} 
           activeOpacity={1} 
-          onPress={() => setRenewalModalVisible(false)}
+          onPress={() => {
+            closeActiveSwipeable();
+            setRenewalModalVisible(false);
+          }}
         >
           <View style={[styles.modalContent, { height: 450 }]}>
             <View style={{ padding: 20 }}>
@@ -520,17 +552,20 @@ Thank you.`;
 
               <View style={{ marginTop: 30, gap: 10 }}>
                 <TouchableOpacity 
-                  style={styles.saveButton} 
-                  onPress={handleConfirmRenewal}
-                >
-                  <Text style={styles.saveButtonText}>Confirm Renewal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.saveButton, { backgroundColor: '#ccc' }]} 
-                  onPress={() => setRenewalModalVisible(false)}
-                >
-                  <Text style={styles.saveButtonText}>Cancel</Text>
-                </TouchableOpacity>
+                   style={styles.saveButton} 
+                   onPress={handleConfirmRenewal}
+                 >
+                   <Text style={styles.saveButtonText}>Confirm Renewal</Text>
+                 </TouchableOpacity>
+                 <TouchableOpacity 
+                   style={[styles.saveButton, { backgroundColor: '#ccc' }]} 
+                   onPress={() => {
+                     closeActiveSwipeable();
+                     setRenewalModalVisible(false);
+                   }}
+                 >
+                   <Text style={styles.saveButtonText}>Cancel</Text>
+                 </TouchableOpacity>
               </View>
             </View>
           </View>

@@ -14,6 +14,7 @@ import {
   ToastAndroid,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { fetchUserProperties, deleteProperty } from '../services/propertyService';
 import { Property } from '../types';
@@ -22,6 +23,7 @@ import styles from '../styles/styles';
 const { height } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +151,7 @@ const DashboardScreen = ({ navigation }: any) => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyStateIcon}>🏠</Text>
+      <Ionicons name="business-outline" size={80} color="#cbd5e1" />
       <Text style={styles.emptyStateTitle}>No Properties Yet</Text>
       <Text style={styles.emptyStateSubtitle}>
         Create your first property to get started!
@@ -168,7 +170,7 @@ const DashboardScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 10, paddingBottom: 16 }]}>
         <Text style={styles.dashboardHeaderTitle}>My Properties</Text>
       </View>
 
@@ -199,7 +201,7 @@ const DashboardScreen = ({ navigation }: any) => {
         style={styles.fab}
         onPress={() => navigation.navigate('AddProperty')}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={32} color="#fff" />
       </TouchableOpacity>
 
       {/* Bottom Sheet - Delete Option Menu */}

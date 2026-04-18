@@ -12,6 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { residentService } from '../services/residentService';
 import { styles } from '../styles/styles';
 import { Resident } from '../types';
@@ -23,6 +25,7 @@ interface AddResidentScreenProps {
 
 const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation }) => {
   const { propertyId, isEditing = false, resident } = route.params || {};
+  const insets = useSafeAreaInsets();
 
   // Helper: Split mobile number into country code and number
   const parseMobileNumber = (fullNumber: string): { code: string; number: string } => {
@@ -42,7 +45,6 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
     countryCode: isEditing && resident ? parseMobileNumber(resident.mobileNumber).code : '+91',
     mobileNumber: isEditing && resident ? parseMobileNumber(resident.mobileNumber).number : '',
     roomNumber: isEditing && resident ? resident.roomNumber : '',
-    roomType: isEditing && resident ? resident.roomType : '',
     rentAmount: isEditing && resident ? resident.rentAmount.toString() : '',
     startDate: isEditing && resident ? resident.startDate : '',
     endDate: isEditing && resident ? resident.endDate : '',
@@ -51,15 +53,10 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
 
   const [loading, setLoading] = useState(false);
   const [showGenderDropdown, setShowGenderDropdown] = useState(false);
-  const [showRoomDropdown, setShowRoomDropdown] = useState(false);
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
   const genders = ['Male', 'Female', 'Other'];
-  const roomNumbers = ['101', '102', '103', '104', '105', '201', '202', '203', '204'];
-  const roomTypes = ['Single', 'Double', 'Triple', 'Shared'];
-  // const paymentStatuses = ['Paid', 'Unpaid'] as const;
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -128,12 +125,8 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
       Alert.alert('Error', 'Please enter a valid mobile number');
       return false;
     }
-    if (!formData.roomNumber) {
-      Alert.alert('Error', 'Please select a room number');
-      return false;
-    }
-    if (!formData.roomType) {
-      Alert.alert('Error', 'Please select a room type');
+    if (!formData.roomNumber.trim()) {
+      Alert.alert('Error', 'Please enter a room number');
       return false;
     }
     if (!formData.rentAmount.trim() || isNaN(parseFloat(formData.rentAmount))) {
@@ -162,7 +155,6 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
         emailId: formData.emailId,
         mobileNumber: `${formData.countryCode} ${formData.mobileNumber}`,
         roomNumber: formData.roomNumber,
-        roomType: formData.roomType,
         rentAmount: parseFloat(formData.rentAmount),
         startDate: formData.startDate,
         endDate: formData.endDate,
@@ -203,12 +195,12 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
   return (
     <View style={styles.container}>
       {/* Header Banner */}
-      <View style={styles.formBanner}>
+      <View style={[styles.formBanner, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.formBackButton}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.formTitle}>{headerTitle}</Text>
         <View style={{ width: 40 }} />
@@ -243,7 +235,7 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
               <Text style={styles.dropdownButtonText}>
                 {formData.gender || 'Select gender'}
               </Text>
-              <Text style={styles.dropdownIcon}>▼</Text>
+              <Ionicons name="chevron-down" size={20} color="#6366f1" />
             </TouchableOpacity>
           </View>
 
@@ -285,28 +277,14 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Room Number *</Text>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => setShowRoomDropdown(true)}
-            >
-              <Text style={styles.dropdownButtonText}>
-                {formData.roomNumber || 'Select room number'}
-              </Text>
-              <Text style={styles.dropdownIcon}>▼</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Room Type *</Text>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => setShowTypeDropdown(true)}
-            >
-              <Text style={styles.dropdownButtonText}>
-                {formData.roomType || 'Select room type'}
-              </Text>
-              <Text style={styles.dropdownIcon}>▼</Text>
-            </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter room number"
+              placeholderTextColor="#ccc"
+              keyboardType="default"
+              value={formData.roomNumber}
+              onChangeText={(value) => handleInputChange('roomNumber', value)}
+            />
           </View>
         </View>
 
@@ -351,8 +329,6 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
               </TouchableOpacity>
             </View>
           </View>
-
-            {/* Payment status determined by dates */}
         </View>
 
         {/* Remarks Section */}
@@ -407,60 +383,6 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
                   onPress={() => {
                     handleInputChange('gender', item);
                     setShowGenderDropdown(false);
-                  }}
-                >
-                  <Text style={styles.modalItemText}>{item}</Text>
-                </TouchableOpacity>
-              )}
-              keyExtractor={(item) => item}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Room Number Dropdown Modal */}
-      <Modal visible={showRoomDropdown} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setShowRoomDropdown(false)}
-          activeOpacity={1}
-        >
-          <View style={styles.modalContent}>
-            <FlatList
-              data={roomNumbers}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => {
-                    handleInputChange('roomNumber', item);
-                    setShowRoomDropdown(false);
-                  }}
-                >
-                  <Text style={styles.modalItemText}>{item}</Text>
-                </TouchableOpacity>
-              )}
-              keyExtractor={(item) => item}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Room Type Dropdown Modal */}
-      <Modal visible={showTypeDropdown} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setShowTypeDropdown(false)}
-          activeOpacity={1}
-        >
-          <View style={styles.modalContent}>
-            <FlatList
-              data={roomTypes}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => {
-                    handleInputChange('roomType', item);
-                    setShowTypeDropdown(false);
                   }}
                 >
                   <Text style={styles.modalItemText}>{item}</Text>
