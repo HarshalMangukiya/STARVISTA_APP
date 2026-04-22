@@ -5,14 +5,13 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+platform :ios, '15.1'
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+use_frameworks! :linkage => :static
+
+# Required for RNFB pods to work correctly with static frameworks
+$RNFirebaseAsStaticFramework = true
 
 target 'STARVISTA' do
   config = use_native_modules!
@@ -23,6 +22,25 @@ target 'STARVISTA' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # Firebase pods — all need modular_headers for static framework linking
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseAuth', :modular_headers => true
+  pod 'FirebaseAuthInterop', :modular_headers => true
+  pod 'FirebaseAppCheckInterop', :modular_headers => true
+  pod 'FirebaseDatabase', :modular_headers => true
+  pod 'FirebaseFirestore', :modular_headers => true
+  pod 'FirebaseFirestoreInternal', :modular_headers => true
+  pod 'FirebaseStorage', :modular_headers => true
+  pod 'FirebaseSharedSwift', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'GoogleAppMeasurement', :modular_headers => true
+  pod 'GTMSessionFetcher', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+  pod 'leveldb-library', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
+
   post_install do |installer|
     react_native_post_install(
       installer,
@@ -30,5 +48,46 @@ target 'STARVISTA' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # RNFB pods that have module conflicts due to shared RCTBridgeModule declarations
+    rnfb_pods = ['RNFBApp', 'RNFBAuth', 'RNFBDatabase', 'RNFBFirestore', 'RNFBStorage']
+
+    # Apply settings AFTER react_native_post_install to override its defaults
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+        # Disable Swift explicit modules to avoid module re-export conflicts
+        config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
+
+        # Xcode 26 Clang treats implicit-int as error; suppress for RNFB compatibility
+        flags = config.build_settings['OTHER_CFLAGS'] || ['$(inherited)']
+        flags = [flags] if flags.is_a?(String)
+        flags << '-Wno-implicit-int' unless flags.include?('-Wno-implicit-int')
+        flags << '-Wno-strict-prototypes' unless flags.include?('-Wno-strict-prototypes')
+        config.build_settings['OTHER_CFLAGS'] = flags
+      end
+
+      # Fix: For RNFB pods, rewrite the module map to avoid the
+      # "must be imported from module" conflict. The auto-generated
+      # `module * { export * }` causes RCTBridgeModule declarations to
+      # clash across RNFBApp and RNFBFirestore modules.
+      if rnfb_pods.include?(target.name)
+        target.build_configurations.each do |config|
+          # Use a simple module map without submodule re-exports
+          modulemap_path = config.build_settings['MODULEMAP_FILE']
+          if modulemap_path
+            full_path = File.join(installer.sandbox.root, modulemap_path)
+            if File.exist?(full_path)
+              content = File.read(full_path)
+              # Replace `module * { export * }` with just `export *`
+              new_content = content.gsub(/\n\s*module \* \{ export \* \}\s*/, "\n")
+              File.write(full_path, new_content) if new_content != content
+            end
+          end
+        end
+      end
+    end
   end
 end
