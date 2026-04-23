@@ -13,8 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../context/AuthContext';
 import { ModernInput, ErrorBox } from '../../components/AuthComponents';
-import { validateEmail, validateSecurityKey, validatePassword } from '../../utils/validation';
-import { formatSecurityKey } from '../../utils/validation';
+import { validateEmail, validatePassword } from '../../utils/validation';
 
 const SignupScreen = ({ navigation: navigationProp }: any) => {
   // Use navigation hook as primary, fall back to prop
@@ -24,11 +23,9 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [securityKey, setSecurityKey] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const [securityKeyError, setSecurityKeyError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const { signup, error, clearError } = useAuth();
@@ -44,7 +41,6 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
     setEmailError('');
     setPasswordError('');
     setConfirmPasswordError('');
-    setSecurityKeyError('');
 
     // Email validation
     if (!email.trim()) {
@@ -73,15 +69,6 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
       isValid = false;
     }
 
-    // Security key validation
-    if (!securityKey.trim()) {
-      setSecurityKeyError('Security key is required');
-      isValid = false;
-    } else if (!validateSecurityKey(securityKey)) {
-      setSecurityKeyError('Format must be XXXX-XXXX (8 digits)');
-      isValid = false;
-    }
-
     return isValid;
   };
 
@@ -98,7 +85,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
 
     try {
       // Call signup from context
-      await signup(email, password, securityKey);
+      await signup(email, password);
 
       // Show success alert and navigate
       Alert.alert(
@@ -112,7 +99,6 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
               setEmail('');
               setPassword('');
               setConfirmPassword('');
-              setSecurityKey('');
               navigation.navigate('Login' as never);
             },
             style: 'default'
@@ -130,11 +116,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
     }
   };
 
-  const handleSecurityKeyChange = (text: string) => {
-    const formatted = formatSecurityKey(text);
-    setSecurityKey(formatted);
-    setSecurityKeyError('');
-  };
+
 
   console.log('Rendering signup screen');
 
@@ -203,21 +185,7 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
             error={confirmPasswordError}
           />
 
-          {/* Security Key Input */}
-          <View>
-            <ModernInput
-              label="Security Key"
-              placeholder="0000-0000"
-              value={securityKey}
-              onChangeText={handleSecurityKeyChange}
-              icon="shield-key-outline"
-              keyboardType="numeric"
-              error={securityKeyError}
-            />
-            <Text style={styles.hintText}>
-              Create a 4-digit-4-digit security key for login
-            </Text>
-          </View>
+
 
           {/* Sign Up Button */}
           <TouchableOpacity

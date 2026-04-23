@@ -309,7 +309,10 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
               <Text style={styles.label}>Start Date *</Text>
               <TouchableOpacity
                 style={styles.dateButton}
-                onPress={() => setShowStartDatePicker(true)}
+                onPress={() => {
+                  setShowEndDatePicker(false);
+                  setShowStartDatePicker(true);
+                }}
               >
                 <Text style={styles.dateButtonText}>
                   {formData.startDate ? formatDate(formData.startDate) : 'Select date'}
@@ -321,7 +324,10 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
               <Text style={styles.label}>End Date *</Text>
               <TouchableOpacity
                 style={styles.dateButton}
-                onPress={() => setShowEndDatePicker(true)}
+                onPress={() => {
+                  setShowStartDatePicker(false);
+                  setShowEndDatePicker(true);
+                }}
               >
                 <Text style={styles.dateButtonText}>
                   {formData.endDate ? formatDate(formData.endDate) : 'Select date'}
@@ -394,26 +400,100 @@ const AddResidentScreen: React.FC<AddResidentScreenProps> = ({ route, navigation
         </TouchableOpacity>
       </Modal>
 
-      {/* Start Date Picker */}
-      {showStartDatePicker && (
+      {/* Start Date Picker (Android) */}
+      {showStartDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={formData.startDate ? new Date(formData.startDate) : new Date()}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={handleStartDateChange}
         />
       )}
 
-      {/* End Date Picker */}
-      {showEndDatePicker && (
+      {/* End Date Picker (Android) */}
+      {showEndDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={formData.endDate ? new Date(formData.endDate) : new Date()}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={handleEndDateChange}
         />
       )}
+
+      {/* iOS Date Picker Modal */}
+      {Platform.OS === 'ios' && (showStartDatePicker || showEndDatePicker) && (
+        <IOSDatePickerModal
+          visible={showStartDatePicker || showEndDatePicker}
+          title={showStartDatePicker ? 'Start Date' : 'End Date'}
+          value={
+            showStartDatePicker
+              ? (formData.startDate ? new Date(formData.startDate) : new Date())
+              : (formData.endDate ? new Date(formData.endDate) : new Date())
+          }
+          onSave={(date: Date) => {
+            const dateString = date.toISOString().split('T')[0];
+            if (showStartDatePicker) {
+              setFormData(prev => ({ ...prev, startDate: dateString }));
+            } else {
+              setFormData(prev => ({ ...prev, endDate: dateString }));
+            }
+            setShowStartDatePicker(false);
+            setShowEndDatePicker(false);
+          }}
+          onClose={() => {
+            setShowStartDatePicker(false);
+            setShowEndDatePicker(false);
+          }}
+        />
+      )}
     </View>
+  );
+};
+
+// Helper Component for iOS Date Picker Modal
+const IOSDatePickerModal = ({ visible, title, value, onSave, onClose }: any) => {
+  const [localDate, setLocalDate] = useState(value);
+
+  React.useEffect(() => {
+    setLocalDate(value);
+  }, [value, visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        onPress={onClose}
+        activeOpacity={1}
+      >
+        <TouchableOpacity activeOpacity={1} style={[styles.modalContent, { padding: 20 }]}>
+          <Text style={styles.sectionTitle}>Select {title}</Text>
+          <View style={{ alignItems: 'center', marginVertical: 10 }}>
+            <DateTimePicker
+              value={localDate}
+              mode="date"
+              display="spinner"
+              onChange={(_: any, date?: Date) => {
+                if (date) setLocalDate(date);
+              }}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingBottom: 20 }}>
+            <TouchableOpacity 
+              style={[styles.button, styles.discardButton]} 
+              onPress={onClose}
+            >
+              <Text style={styles.discardButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: '#6366f1' }]} 
+              onPress={() => onSave(localDate)}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 };
 

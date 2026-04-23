@@ -11,6 +11,7 @@ import {
   FlatList,
   Platform,
   TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -366,21 +367,45 @@ const ResidentDetailsScreen: React.FC<ResidentDetailsScreenProps> = ({
       />
 
       {/* Date Pickers */}
-      {showStartDatePicker && (
+      {showStartDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={resident.startDate ? new Date(resident.startDate) : new Date()}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={(event: any, date?: Date) => onDateChange(event, date, 'startDate')}
         />
       )}
 
-      {showEndDatePicker && (
+      {showEndDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={resident.endDate ? new Date(resident.endDate) : new Date()}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={(event: any, date?: Date) => onDateChange(event, date, 'endDate')}
+        />
+      )}
+
+      {/* iOS Date Picker Modal */}
+      {Platform.OS === 'ios' && (showStartDatePicker || showEndDatePicker) && (
+        <IOSDatePickerModal
+          visible={showStartDatePicker || showEndDatePicker}
+          title={showStartDatePicker ? 'Check-in Date' : 'Check-out Date'}
+          value={
+            showStartDatePicker
+              ? (resident.startDate ? new Date(resident.startDate) : new Date())
+              : (resident.endDate ? new Date(resident.endDate) : new Date())
+          }
+          onSave={(date: Date) => {
+            const field = showStartDatePicker ? 'startDate' : 'endDate';
+            const dateString = date.toISOString().split('T')[0];
+            handleUpdateField(field, dateString);
+            setShowStartDatePicker(false);
+            setShowEndDatePicker(false);
+          }}
+          onClose={() => {
+            setShowStartDatePicker(false);
+            setShowEndDatePicker(false);
+          }}
         />
       )}
 
@@ -443,21 +468,73 @@ const TextEditModal = ({ visible, config, onSave, onClose }: any) => {
 
   return (
     <Modal visible={visible} transparent animationType="slide">
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={onClose}
+          activeOpacity={1}
+        >
+          <TouchableOpacity activeOpacity={1} style={[styles.modalContent, { padding: 20 }]}>
+            <Text style={styles.sectionTitle}>Edit {config.title}</Text>
+            <TextInput
+              style={[styles.input, { marginTop: 10 }]}
+              value={localValue}
+              onChangeText={setLocalValue}
+              placeholder={`Enter ${config.title.toLowerCase()}...`}
+              keyboardType={config.keyboardType}
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingBottom: 20 }}>
+              <TouchableOpacity 
+                style={[styles.button, styles.discardButton]} 
+                onPress={onClose}
+              >
+                <Text style={styles.discardButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, { backgroundColor: '#6366f1' }]} 
+                onPress={() => onSave(localValue)}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+};
+
+// Helper Component for iOS Date Picker Modal
+const IOSDatePickerModal = ({ visible, title, value, onSave, onClose }: any) => {
+  const [localDate, setLocalDate] = useState(value);
+
+  React.useEffect(() => {
+    setLocalDate(value);
+  }, [value, visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
       <TouchableOpacity
         style={styles.modalOverlay}
         onPress={onClose}
         activeOpacity={1}
       >
-        <View style={[styles.modalContent, { padding: 20 }]}>
-          <Text style={styles.sectionTitle}>Edit {config.title}</Text>
-          <TextInput
-            style={[styles.input, { marginTop: 10 }]}
-            value={localValue}
-            onChangeText={setLocalValue}
-            placeholder={`Enter ${config.title.toLowerCase()}...`}
-            keyboardType={config.keyboardType}
-            autoFocus
-          />
+        <TouchableOpacity activeOpacity={1} style={[styles.modalContent, { padding: 20 }]}>
+          <Text style={styles.sectionTitle}>Select {title}</Text>
+          <View style={{ alignItems: 'center', marginVertical: 10 }}>
+            <DateTimePicker
+              value={localDate}
+              mode="date"
+              display="spinner"
+              onChange={(_: any, date?: Date) => {
+                if (date) setLocalDate(date);
+              }}
+            />
+          </View>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingBottom: 20 }}>
             <TouchableOpacity 
               style={[styles.button, styles.discardButton]} 
@@ -467,12 +544,12 @@ const TextEditModal = ({ visible, config, onSave, onClose }: any) => {
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.button, { backgroundColor: '#6366f1' }]} 
-              onPress={() => onSave(localValue)}
+              onPress={() => onSave(localDate)}
             >
               <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );

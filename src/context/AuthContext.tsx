@@ -11,8 +11,8 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isSignedIn: boolean;
-  login: (email: string, password: string, securityKey: string) => Promise<void>;
-  signup: (email: string, password: string, securityKey: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   error: string | null;
   clearError: () => void;
@@ -59,11 +59,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const login = async (email: string, password: string, securityKey: string) => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const loginUser = await authService.login(email, password, securityKey);
+      const loginUser = await authService.login(email, password);
       setUser(loginUser);
       setIsSignedIn(true);
     } catch (err: any) {
@@ -75,12 +75,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const signup = async (email: string, password: string, securityKey: string) => {
+  const signup = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
     try {
       console.log('AuthContext: Starting signup');
-      const newUser = await authService.signup(email, password, securityKey);
+      const newUser = await authService.signup(email, password);
       console.log('AuthContext: Signup successful, user:', newUser.email);
       setUser(newUser);
       // Don't automatically sign in after signup - user must log in

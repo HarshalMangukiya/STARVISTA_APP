@@ -15,14 +15,14 @@ const STORAGE_KEYS = {
 
 class AuthService {
   /**
-   * Sign up with email, password, and security key
+   * Sign up with email and password
    */
-  async signup(email: string, password: string, securityKey: string): Promise<User> {
+  async signup(email: string, password: string): Promise<User> {
     try {
       console.log('[AuthService] ===== SIGNUP CALLED =====');
       
       // Validate inputs
-      if (!email || !password || !securityKey) {
+      if (!email || !password) {
         throw new Error('All fields are required');
       }
 
@@ -32,10 +32,6 @@ class AuthService {
 
       if (password.length < 6) {
         throw new Error('Password must be at least 6 characters');
-      }
-
-      if (!this.validateSecurityKey(securityKey)) {
-        throw new Error('Security key must be in format XXXX-XXXX');
       }
 
       // Create user in Firebase Auth
@@ -52,11 +48,10 @@ class AuthService {
       const firebaseUser = userCredential.user;
 
       try {
-        // Store securityKey and role in Firestore
+        // Store role in Firestore
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         await setDoc(userDocRef, {
           email,
-          securityKey,
           role: 'Verified Property Owner',
           createdAt: new Date().toISOString(),
         });
@@ -90,10 +85,10 @@ class AuthService {
   }
 
   /**
-   * Login with email, password, and security key
+   * Login with email and password
    */
-  async login(email: string, password: string, securityKey: string): Promise<User> {
-    if (!email || !password || !securityKey) {
+  async login(email: string, password: string): Promise<User> {
+    if (!email || !password) {
       throw new Error('All fields are required');
     }
 
@@ -102,7 +97,7 @@ class AuthService {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
-      // 2. Fetch the user's document from Firestore to verify Security Key
+      // 2. Fetch the user's document from Firestore
       const userDocRef = doc(firestore, 'users', firebaseUser.uid);
       const userDoc = await getDoc(userDocRef);
       
@@ -113,12 +108,6 @@ class AuthService {
       }
 
       const userData = userDoc.data();
-      
-      if (userData?.securityKey !== securityKey) {
-        // Important: Sign them out if multifactor fails
-        await signOut(auth);
-        throw new Error('Incorrect security key');
-      }
 
       const user: User = {
         email,
@@ -213,14 +202,6 @@ class AuthService {
   private validateEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-  }
-
-  /**
-   * Validate security key format (XXXX-XXXX)
-   */
-  private validateSecurityKey(key: string): boolean {
-    const keyRegex = /^\d{4}-\d{4}$/;
-    return keyRegex.test(key);
   }
 }
 

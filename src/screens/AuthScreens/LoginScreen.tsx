@@ -16,8 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { auth } from '../../config/firebase';
 import { sendPasswordResetEmail } from '@react-native-firebase/auth';
 import { ModernInput, ModernCheckbox, ModernButton, ErrorBox } from '../../components/AuthComponents';
-import { validateEmail, validateSecurityKey, validatePassword } from '../../utils/validation';
-import { formatSecurityKey } from '../../utils/validation';
+import { validateEmail, validatePassword } from '../../utils/validation';
 
 const { height } = Dimensions.get('window');
 
@@ -27,11 +26,9 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [securityKey, setSecurityKey] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [securityKeyError, setSecurityKeyError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const { login, error, clearError, isLoading: authIsLoading } = useAuth();
@@ -46,7 +43,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
     // Reset all errors first
     setEmailError('');
     setPasswordError('');
-    setSecurityKeyError('');
 
     // Email validation
     if (!email.trim()) {
@@ -66,15 +62,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
       isValid = false;
     }
 
-    // Security key validation
-    if (!securityKey.trim()) {
-      setSecurityKeyError('Security key is required');
-      isValid = false;
-    } else if (!validateSecurityKey(securityKey)) {
-      setSecurityKeyError('Format must be XXXX-XXXX');
-      isValid = false;
-    }
-
     return isValid;
   };
 
@@ -85,7 +72,7 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
 
     setIsLoading(true);
     try {
-      await login(email, password, securityKey);
+      await login(email, password);
       // Navigation is handled by RootNavigator based on isSignedIn state
     } catch (err: any) {
       // Error is handled by context
@@ -95,11 +82,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
     }
   };
 
-  const handleSecurityKeyChange = (text: string) => {
-    const formatted = formatSecurityKey(text);
-    setSecurityKey(formatted);
-    setSecurityKeyError('');
-  };
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
@@ -174,16 +156,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
             error={passwordError}
           />
 
-          {/* Security Key Input */}
-          <ModernInput
-            label="Security Key"
-            placeholder="0000-0000"
-            value={securityKey}
-            onChangeText={handleSecurityKeyChange}
-            icon="shield-key-outline"
-            keyboardType="numeric"
-            error={securityKeyError}
-          />
 
           {/* Remember Me Checkbox */}
           <ModernCheckbox
