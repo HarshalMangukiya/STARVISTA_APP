@@ -540,8 +540,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyStateEmoji: {
-    fontSize: 72,
+    fontSize: 28,
     marginBottom: 20,
+    fontWeight: '600',
   },
   emptyStateText: {
     fontSize: 15,
