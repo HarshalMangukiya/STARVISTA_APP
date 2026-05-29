@@ -116,7 +116,7 @@ export const uploadImages = async (
  * Save property to Firestore
  */
 export const saveProperty = async (
-  property: Omit<Property, 'id' | 'createdAt' | 'ownerId'>
+  property: Omit<Property, 'id' | 'created_at' | 'owner_id'>
 ): Promise<string> => {
   try {
     const currentUser = auth.currentUser;
@@ -125,16 +125,20 @@ export const saveProperty = async (
     }
 
     console.log(`👤 Current user: ${currentUser.uid}`);
-    console.log(`🏠 Saving property: ${property.propertyName}`);
+    console.log(`🏠 Saving property: ${property.name || property.propertyName}`);
 
+    // Support both new and legacy field names
     const propertyData = {
-      ...property,
-      ownerId: currentUser.uid,
-      createdAt: Timestamp.now(),
+      name: property.name || property.propertyName || '',
+      description: property.description || property.address || '',
+      image_url: property.image_url || (property.imageUrls?.[0] || ''),
+      total_rooms: property.total_rooms || 0,
+      owner_id: currentUser.uid,
+      created_at: Timestamp.now(),
     };
 
     console.log('💾 Writing to Firestore...');
-    const docRef = await addDoc(collection(firestore, 'properties'), propertyData);
+    const docRef = await addDoc(collection(firestore as any, 'properties'), propertyData);
     console.log(`✅ Property saved with ID: ${docRef.id}`);
 
     return docRef.id;
@@ -158,17 +162,24 @@ export const fetchUserProperties = async (): Promise<Property[]> => {
     console.log(`🔍 Fetching properties for user: ${currentUser.uid}`);
 
     const q = query(
-      collection(firestore, 'properties'),
-      where('ownerId', '==', currentUser.uid)
+      collection(firestore as any, 'properties'),
+      where('owner_id', '==', currentUser.uid)
     );
 
     const querySnapshot = await getDocs(q);
     const properties: Property[] = [];
 
     querySnapshot.forEach((docSnapshot: any) => {
+      const data = docSnapshot.data();
       properties.push({
         id: docSnapshot.id,
-        ...docSnapshot.data(),
+        ...data,
+        // Map new field names to legacy field names for compatibility
+        propertyName: data.name || data.propertyName,
+        address: data.description || data.address,
+        imageUrls: data.image_url ? [data.image_url] : data.imageUrls,
+        ownerId: data.owner_id || data.ownerId,
+        createdAt: data.created_at || data.createdAt,
       } as Property);
     });
 
@@ -187,13 +198,20 @@ export const fetchAllProperties = async (): Promise<Property[]> => {
   try {
     console.log('🔍 Fetching all properties...');
 
-    const querySnapshot = await getDocs(collection(firestore, 'properties'));
+    const querySnapshot = await getDocs(collection(firestore as any, 'properties'));
     const properties: Property[] = [];
 
     querySnapshot.forEach((docSnapshot: any) => {
+      const data = docSnapshot.data();
       properties.push({
         id: docSnapshot.id,
-        ...docSnapshot.data(),
+        ...data,
+        // Map new field names to legacy field names for compatibility
+        propertyName: data.name || data.propertyName,
+        address: data.description || data.address,
+        imageUrls: data.image_url ? [data.image_url] : data.imageUrls,
+        ownerId: data.owner_id || data.ownerId,
+        createdAt: data.created_at || data.createdAt,
       } as Property);
     });
 
@@ -219,8 +237,8 @@ export const deleteProperty = async (propertyId: string): Promise<void> => {
     console.log(`🗑️  Starting property deletion: ${propertyId}`);
 
     // Fetch the property to get image URL
-    const propertyRef = doc(firestore, 'properties', propertyId);
-    const propertySnap = await getDoc(propertyRef) as FirebaseFirestoreTypes.DocumentSnapshot<Property>;
+    const propertyRef = doc(firestore as any, 'properties', propertyId);
+    const propertySnap = await getDoc(propertyRef) as any;
     
     const propertyData: Property | undefined = propertySnap.data();
 
@@ -232,7 +250,7 @@ export const deleteProperty = async (propertyId: string): Promise<void> => {
 
     // Delete property from Firestore
     console.log('💾 Deleting property from Firestore...');
-    await deleteDoc(doc(firestore, 'properties', propertyId));
+    await deleteDoc(doc(firestore as any, 'properties', propertyId));
     console.log(`✅ Property deleted successfully: ${propertyId}`);
   } catch (error: any) {
     console.error('❌ Error deleting property:', error);
@@ -255,7 +273,7 @@ export const updateProperty = async (
 
     console.log(`🏠 Updating property ID: ${propertyId}`);
     
-    const docRef = doc(firestore, 'properties', propertyId);
+    const docRef = doc(firestore as any, 'properties', propertyId);
     console.log('💾 Writing updates to Firestore...');
     await updateDoc(docRef, updates);
     console.log(`✅ Property updated successfully: ${propertyId}`);
@@ -272,8 +290,8 @@ export const getProperty = async (propertyId: string): Promise<Property | null> 
   try {
     console.log(`🔍 Fetching property: ${propertyId}`);
 
-    const propertyRef = doc(firestore, 'properties', propertyId);
-    const propertySnap = await getDoc(propertyRef) as FirebaseFirestoreTypes.DocumentSnapshot<Property>;
+    const propertyRef = doc(firestore as any, 'properties', propertyId);
+    const propertySnap = await getDoc(propertyRef) as any;
 
     if (!propertySnap.exists) {
       console.log('⚠️  Property not found');

@@ -117,7 +117,7 @@ const DashboardScreen = ({ navigation }: any) => {
       <TouchableOpacity
         style={styles.propertyCard}
         onPress={() =>
-          navigation.navigate('ResidentsList', {
+          navigation.navigate('RoomsList', {
             propertyId: item.id,
             propertyName: item.propertyName,
           })

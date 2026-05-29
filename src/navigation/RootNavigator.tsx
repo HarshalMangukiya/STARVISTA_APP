@@ -7,9 +7,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import DashboardScreen from '../screens/DashboardScreen';
 import AddPropertyScreen from '../screens/AddPropertyScreen';
 import EditPropertyScreen from '../screens/EditPropertyScreen';
-import ResidentsListScreen from '../screens/ResidentsListScreen';
-import AddResidentScreen from '../screens/AddResidentScreen';
-import ResidentDetailsScreen from '../screens/ResidentDetailsScreen';
+import RoomsListScreen from '../screens/RoomsListScreen';
+import RoomDetailsScreen from '../screens/RoomDetailsScreen';
 import ProfileScreen from '../screens/AuthScreens/ProfileScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
 
@@ -33,16 +32,12 @@ const DashboardStackScreen = () => {
         component={EditPropertyScreen}
       />
       <Stack.Screen
-        name="ResidentsList"
-        component={ResidentsListScreen}
+        name="RoomsList"
+        component={RoomsListScreen}
       />
       <Stack.Screen
-        name="AddResident"
-        component={AddResidentScreen}
-      />
-      <Stack.Screen
-        name="ResidentDetails"
-        component={ResidentDetailsScreen}
+        name="RoomDetails"
+        component={RoomDetailsScreen}
       />
     </Stack.Navigator>
   );

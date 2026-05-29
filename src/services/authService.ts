@@ -49,7 +49,7 @@ class AuthService {
 
       try {
         // Store role in Firestore
-        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        const userDocRef = doc(firestore as any, 'users', firebaseUser.uid);
         await setDoc(userDocRef, {
           email,
           role: 'Verified Property Owner',
@@ -93,38 +93,104 @@ class AuthService {
     }
 
     try {
+      // Trim and normalize email
+      const trimmedEmail = email.trim().toLowerCase();
+      const trimmedPassword = password.trim();
+      
+      console.log('[AuthService] Login attempt for:', trimmedEmail);
+
       // 1. Authenticate with Firebase Auth
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      let userCredential;
+      try {
+        userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+        console.log('[AuthService] Authentication successful for UID:', userCredential.user.uid);
+      } catch (authError: any) {
+        console.error('[AuthService] Firebase Auth Error:', {
+          code: authError?.code,
+          message: authError?.message,
+          nativeErrorMessage: authError?.nativeErrorMessage,
+        });
+        
+        // Map Firebase error codes to user-friendly messages
+        if (authError?.code === 'auth/user-not-found') {
+          throw new Error('No account found with this email address. Please sign up first.');
+        } else if (authError?.code === 'auth/wrong-password') {
+          throw new Error('Incorrect email or password');
+        } else if (authError?.code === 'auth/invalid-credential' || authError?.code === 'auth/invalid-email') {
+          throw new Error('Incorrect email or password');
+        } else if (authError?.code === 'auth/user-disabled') {
+          throw new Error('This account has been disabled. Please contact support.');
+        } else if (authError?.message?.includes('too-many-requests')) {
+          throw new Error('Too many login attempts. Please try again later.');
+        }
+        
+        throw authError;
+      }
+
       const firebaseUser = userCredential.user;
 
       // 2. Fetch the user's document from Firestore
-      const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-      const userDoc = await getDoc(userDocRef);
+      let userDoc;
+      try {
+        const userDocRef = doc(firestore as any, 'users', firebaseUser.uid);
+        userDoc = await getDoc(userDocRef);
+        console.log('[AuthService] Firestore user doc exists:', userDoc.exists());
+      } catch (firestoreError: any) {
+        console.warn('[AuthService] Firestore read error:', {
+          code: firestoreError?.code,
+          message: firestoreError?.message,
+        });
+        
+        // Allow login even if Firestore read fails, but notify
+        if (firestoreError?.code === 'permission-denied') {
+          console.warn('[AuthService] Permission denied reading user doc. Check Firestore rules.');
+          // Continue anyway - user is authenticated
+        }
+      }
       
-      if (!userDoc.exists) {
+      if (!userDoc?.exists()) {
         // This shouldn't normally happen unless DB is out of sync
-        await signOut(auth);
-        throw new Error('User profile not found. Please contact support.');
+        // Try to create the user doc
+        console.warn('[AuthService] User doc missing, attempting to create...');
+        try {
+          const userDocRef = doc(firestore as any, 'users', firebaseUser.uid);
+          await setDoc(userDocRef, {
+            email: trimmedEmail,
+            role: 'Verified Property Owner',
+            createdAt: new Date().toISOString(),
+          });
+          console.log('[AuthService] User doc created successfully');
+        } catch (createError: any) {
+          console.error('[AuthService] Failed to create user doc:', createError?.message);
+          // Don't fail login if we can't create the doc
+          // The user is still authenticated
+        }
       }
 
-      const userData = userDoc.data();
+      const userData = userDoc?.data();
 
       const user: User = {
-        email,
+        email: firebaseUser.email || trimmedEmail,
         role: userData?.role || 'Verified Property Owner',
       };
 
       // 3. Keep backward compatibility with AsyncStorage for fast boots
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-      await AsyncStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'true');
+      try {
+        await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        await AsyncStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'true');
+        console.log('[AuthService] User data saved to AsyncStorage');
+      } catch (storageError) {
+        console.warn('[AuthService] Failed to save to AsyncStorage:', storageError);
+        // Don't fail login if AsyncStorage fails
+      }
 
+      console.log('[AuthService] ===== LOGIN SUCCESSFUL =====');
       return user;
     } catch (error: any) {
-      console.error('[AuthService] LOGIN ERROR:', error?.message || error);
-      // Simplify confusing Firebase errors for the UI
-      if (error?.code === 'auth/user-not-found' || error?.code === 'auth/wrong-password' || error?.code === 'auth/invalid-credential') {
-        throw new Error('Incorrect email or password');
-      }
+      console.error('[AuthService] LOGIN ERROR:', {
+        message: error?.message,
+        code: error?.code,
+      });
       throw error;
     }
   }
@@ -188,7 +254,7 @@ class AuthService {
     // Also update Firestore if needed
     const fbUser = auth.currentUser;
     if (fbUser) {
-      const userDocRef = doc(firestore, 'users', fbUser.uid);
+      const userDocRef = doc(firestore as any, 'users', fbUser.uid);
       await updateDoc(userDocRef, updatedData);
     }
 

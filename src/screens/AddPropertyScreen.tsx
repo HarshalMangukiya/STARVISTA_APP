@@ -98,6 +98,10 @@ const AddPropertyScreen = ({ navigation }: any) => {
         propertyName: propertyName.trim(),
         address: address.trim(),
         imageUrls: [],
+        name: propertyName.trim(),
+        description: address.trim(),
+        image_url: '',
+        total_rooms: 0,
       });
 
       // Upload image if selected

@@ -33,7 +33,9 @@ export const categorizeResidents = (
   today.setHours(0, 0, 0, 0); // Normalize to start of day
 
   const categorizedAll: CategorizedResident[] = residents.map(resident => {
-    const checkOutDate = convertToDate(resident.endDate);
+    // Support both new and legacy field names
+    const endDate = resident.end_date || resident.endDate;
+    const checkOutDate = convertToDate(endDate);
 
     let category: ResidentCategory = 'Upcoming';
     let daysUntilCheckOut = 0;

@@ -16,7 +16,7 @@ export const residentService = {
   // Fetch all residents for a property
   fetchPropertyResidents: async (propertyId: string): Promise<Resident[]> => {
     try {
-      const residentsRef = collection(firestore, 'properties', propertyId, 'residents');
+      const residentsRef = collection(firestore as any, 'residents');
       const q = query(residentsRef);
       const querySnapshot = await getDocs(q);
 
@@ -26,25 +26,34 @@ export const residentService = {
         if (data) {
           residents.push({
             id: docSnapshot.id,
-            studentName: data.studentName || '',
+            name: data.name || data.studentName || '',
             gender: data.gender || '',
-            emailId: data.emailId || '',
-            mobileNumber: data.mobileNumber || '',
-            roomNumber: data.roomNumber || '',
-            rentAmount: data.rentAmount || 0,
-            startDate: data.startDate || '',
-            endDate: data.endDate || '',
+            email: data.email || data.emailId || '',
+            phone: data.phone || data.mobileNumber || '',
+            room_no: data.room_no || data.roomNumber || '',
+            monthly_rent: data.monthly_rent || data.rentAmount || 0,
+            start_date: data.start_date || data.startDate || '',
+            end_date: data.end_date || data.endDate || '',
             remarks: data.remarks || '',
-            propertyId: propertyId,
-            createdAt: data.createdAt,
-          });
+            propertyId: data.propertyId || propertyId,
+            created_at: data.created_at || data.createdAt,
+            // Legacy fields
+            studentName: data.name || data.studentName,
+            emailId: data.email || data.emailId,
+            mobileNumber: data.phone || data.mobileNumber,
+            roomNumber: data.room_no || data.roomNumber,
+            rentAmount: data.monthly_rent || data.rentAmount,
+            startDate: data.start_date || data.startDate,
+            endDate: data.end_date || data.endDate,
+            createdAt: data.created_at || data.createdAt,
+          } as Resident);
         }
       });
 
       // Sort by creation date (newest first)
       return residents.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis?.() || 0;
-        const timeB = b.createdAt?.toMillis?.() || 0;
+        const timeA = a.created_at?.toMillis?.() || 0;
+        const timeB = b.created_at?.toMillis?.() || 0;
         return timeB - timeA;
       });
     } catch (error) {
@@ -56,7 +65,7 @@ export const residentService = {
   // Fetch resident by ID
   fetchResidentById: async (residentId: string, propertyId: string): Promise<Resident | null> => {
     try {
-      const residentRef = doc(firestore, 'properties', propertyId, 'residents', residentId);
+      const residentRef = doc(firestore as any, 'residents', residentId);
       const docSnapshot = await getDoc(residentRef);
 
       if (docSnapshot.exists()) {
@@ -64,18 +73,27 @@ export const residentService = {
         if (data) {
           return {
             id: docSnapshot.id,
-            studentName: data.studentName || '',
+            name: data.name || data.studentName || '',
             gender: data.gender || '',
-            emailId: data.emailId || '',
-            mobileNumber: data.mobileNumber || '',
-            roomNumber: data.roomNumber || '',
-            rentAmount: data.rentAmount || 0,
-            startDate: data.startDate || '',
-            endDate: data.endDate || '',
+            email: data.email || data.emailId || '',
+            phone: data.phone || data.mobileNumber || '',
+            room_no: data.room_no || data.roomNumber || '',
+            monthly_rent: data.monthly_rent || data.rentAmount || 0,
+            start_date: data.start_date || data.startDate || '',
+            end_date: data.end_date || data.endDate || '',
             remarks: data.remarks || '',
             propertyId: propertyId,
-            createdAt: data.createdAt,
-          };
+            created_at: data.created_at || data.createdAt,
+            // Legacy fields
+            studentName: data.name || data.studentName,
+            emailId: data.email || data.emailId,
+            mobileNumber: data.phone || data.mobileNumber,
+            roomNumber: data.room_no || data.roomNumber,
+            rentAmount: data.monthly_rent || data.rentAmount,
+            startDate: data.start_date || data.startDate,
+            endDate: data.end_date || data.endDate,
+            createdAt: data.created_at || data.createdAt,
+          } as Resident;
         }
       }
       return null;
@@ -86,28 +104,32 @@ export const residentService = {
   },
 
   // Add new resident
-  addResident: async (propertyId: string, resident: Omit<Resident, 'id' | 'createdAt'> & { propertyId: string }): Promise<Resident> => {
+  addResident: async (propertyId: string, resident: Omit<Resident, 'id' | 'created_at'> & { propertyId: string }): Promise<Resident> => {
     try {
-      const residentsRef = collection(firestore, 'properties', propertyId, 'residents');
+      const residentsRef = collection(firestore as any, 'residents');
 
-      const docRef = await addDoc(residentsRef, {
-        studentName: resident.studentName,
+      // Map legacy field names to new field names
+      const residentData = {
+        name: resident.name || resident.studentName,
         gender: resident.gender,
-        emailId: resident.emailId,
-        mobileNumber: resident.mobileNumber,
-        roomNumber: resident.roomNumber,
-        rentAmount: resident.rentAmount,
-        startDate: resident.startDate,
-        endDate: resident.endDate,
+        email: resident.email || resident.emailId,
+        phone: resident.phone || resident.mobileNumber,
+        room_no: resident.room_no || resident.roomNumber,
+        monthly_rent: resident.monthly_rent || resident.rentAmount,
+        start_date: resident.start_date || resident.startDate,
+        end_date: resident.end_date || resident.endDate,
         remarks: resident.remarks || '',
-        createdAt: Timestamp.now(),
-      });
+        propertyId: propertyId,
+        created_at: Timestamp.now(),
+      };
+
+      const docRef = await addDoc(residentsRef, residentData);
 
       const newResident: Resident = {
         ...resident,
         id: docRef.id,
-        createdAt: Timestamp.now(),
-      };
+        created_at: Timestamp.now(),
+      } as Resident;
 
       return newResident;
     } catch (error) {
@@ -119,18 +141,18 @@ export const residentService = {
   // Update resident
   updateResident: async (propertyId: string, residentId: string, updates: Partial<Resident>): Promise<Resident | null> => {
     try {
-      const residentRef = doc(firestore, 'properties', propertyId, 'residents', residentId);
+      const residentRef = doc(firestore as any, 'residents', residentId);
 
       const updateData: any = {};
 
-      if (updates.studentName) updateData.studentName = updates.studentName;
+      if (updates.name || updates.studentName) updateData.name = updates.name || updates.studentName;
       if (updates.gender) updateData.gender = updates.gender;
-      if (updates.emailId) updateData.emailId = updates.emailId;
-      if (updates.mobileNumber) updateData.mobileNumber = updates.mobileNumber;
-      if (updates.roomNumber) updateData.roomNumber = updates.roomNumber;
-      if (updates.rentAmount !== undefined) updateData.rentAmount = updates.rentAmount;
-      if (updates.startDate) updateData.startDate = updates.startDate;
-      if (updates.endDate) updateData.endDate = updates.endDate;
+      if (updates.email || updates.emailId) updateData.email = updates.email || updates.emailId;
+      if (updates.phone || updates.mobileNumber) updateData.phone = updates.phone || updates.mobileNumber;
+      if (updates.room_no || updates.roomNumber) updateData.room_no = updates.room_no || updates.roomNumber;
+      if (updates.monthly_rent !== undefined || updates.rentAmount !== undefined) updateData.monthly_rent = updates.monthly_rent ?? updates.rentAmount;
+      if (updates.start_date || updates.startDate) updateData.start_date = updates.start_date || updates.startDate;
+      if (updates.end_date || updates.endDate) updateData.end_date = updates.end_date || updates.endDate;
       if (updates.remarks) updateData.remarks = updates.remarks;
 
       await updateDoc(residentRef, updateData);
@@ -145,7 +167,7 @@ export const residentService = {
   // Delete resident
   deleteResident: async (propertyId: string, residentId: string): Promise<boolean> => {
     try {
-      const residentRef = doc(firestore, 'properties', propertyId, 'residents', residentId);
+      const residentRef = doc(firestore as any, 'residents', residentId);
       await deleteDoc(residentRef);
       return true;
     } catch (error) {
@@ -159,9 +181,9 @@ export const residentService = {
     try {
       const residents = await residentService.fetchPropertyResidents(propertyId);
       return residents.filter(r =>
-        r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.mobileNumber.includes(searchQuery) ||
-        r.emailId.toLowerCase().includes(searchQuery.toLowerCase())
+        (r.name || r.studentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.phone || r.mobileNumber || '').includes(searchQuery) ||
+        (r.email || r.emailId || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
     } catch (error) {
       console.error('Error searching residents:', error);

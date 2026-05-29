@@ -83,10 +83,10 @@ export const useFilterCategorizedResidents = (
       const query = searchQuery.toLowerCase();
       result = result.filter(
         r =>
-          r.studentName.toLowerCase().includes(query) ||
-          r.mobileNumber.includes(query) ||
-          r.emailId.toLowerCase().includes(query) ||
-          r.roomNumber.toLowerCase().includes(query)
+          (r.studentName || r.name || '').toLowerCase().includes(query) ||
+          (r.mobileNumber || r.phone || '').includes(query) ||
+          (r.emailId || r.email || '').toLowerCase().includes(query) ||
+          (r.roomNumber || r.room_no || '').toLowerCase().includes(query)
       );
     }
 
