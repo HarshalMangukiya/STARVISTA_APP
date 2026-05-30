@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,10 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
   const [rooms, setRooms] = useState<RoomWithResidents[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Cache management - track last fetch time to avoid unnecessary refetches
+  const lastFetchTimeRef = useRef<number | null>(null);
+  const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
   // Add Room Modal State
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newRoomNo, setNewRoomNo] = useState('');
@@ -54,9 +58,23 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
 
   useFocusEffect(
     useCallback(() => {
-      fetchRooms();
+      const now = Date.now();
+      const timeSinceLastFetch = lastFetchTimeRef.current ? now - lastFetchTimeRef.current : null;
+
+      // Only fetch if data doesn't exist or cache expired (older than 5 minutes)
+      if (!timeSinceLastFetch || timeSinceLastFetch > CACHE_DURATION_MS) {
+        fetchRooms();
+        lastFetchTimeRef.current = now;
+      }
+      // If cache is fresh, data remains displayed without refetch
     }, [fetchRooms])
   );
+
+  // Force refresh function for manual refresh or after add/delete room
+  const forceFetchRooms = useCallback(async () => {
+    await fetchRooms();
+    lastFetchTimeRef.current = Date.now();
+  }, [fetchRooms]);
 
   const handleAddRoom = async () => {
     if (!newRoomNo.trim()) {
@@ -83,7 +101,7 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
       setNewRoomNo('');
       setNewCapacity('1');
       setNewRent('');
-      fetchRooms();
+      forceFetchRooms();
     } catch (error) {
       console.error('Error saving room:', error);
       Alert.alert('Error', 'Failed to save room. Please try again.');
@@ -159,6 +177,8 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
             roomId: item.id,
             propertyId: propertyId,
             propertyName: propertyName,
+            room: item,
+            residents: item.residents,
           })
         }
       >
@@ -190,6 +210,25 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
     );
   };
 
+  // Skeleton Loader Card Component
+  const SkeletonCard = () => (
+    <View style={[localStyles.roomCard, { opacity: 0.7 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <View style={localStyles.skeletonIcon} />
+        <View style={localStyles.skeletonTitle} />
+      </View>
+
+      <View style={localStyles.residentsSection}>
+        <View style={localStyles.skeletonLine} />
+        <View style={[localStyles.skeletonLine, { marginTop: 8 }]} />
+        <View style={[localStyles.skeletonLine, { marginTop: 8, width: '70%' }]} />
+      </View>
+    </View>
+  );
+
+  // Generate skeleton array for initial load (6 skeletons)
+  const skeletonData = Array.from({ length: 6 }, (_, i) => ({ id: `skeleton-${i}` }));
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -206,10 +245,15 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
       </View>
 
       {/* Rooms List */}
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
-        </View>
+      {loading && rooms.length === 0 ? (
+        <FlatList
+          data={skeletonData}
+          renderItem={() => <SkeletonCard />}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={false}
+        />
       ) : rooms.length > 0 ? (
         <FlatList
           data={rooms}
@@ -417,6 +461,26 @@ const localStyles = StyleSheet.create({
     fontSize: 13,
     color: '#94a3b8',
     fontStyle: 'italic',
+  },
+  // Skeleton Loader Styles
+  skeletonIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    backgroundColor: '#e2e8f0',
+    marginRight: 8,
+  },
+  skeletonTitle: {
+    width: 80,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: '#e2e8f0',
+    flex: 1,
+  },
+  skeletonLine: {
+    height: 16,
+    borderRadius: 6,
+    backgroundColor: '#e2e8f0',
   },
   modalHeader: {
     flexDirection: 'row',

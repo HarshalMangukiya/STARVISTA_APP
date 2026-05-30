@@ -31,6 +31,8 @@ interface SwipeableCardProps {
 
 const SwipeableCard: React.FC<SwipeableCardProps> = ({ children, onSwipeLeft }) => {
   const pan = React.useRef(new Animated.ValueXY()).current;
+  const [isActionTriggered, setIsActionTriggered] = React.useState(false);
+
   const panResponder = React.useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -38,20 +40,23 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ children, onSwipeLeft }) 
         return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && gestureState.dx < -10;
       },
       onPanResponderMove: (evt, gestureState) => {
-        if (gestureState.dx < 0) {
-          pan.setValue({ x: gestureState.dx, y: 0 });
+        if (gestureState.dx < 0 && !isActionTriggered) {
+          pan.setValue({ x: Math.max(gestureState.dx, -120), y: 0 });
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
-        if (gestureState.dx < -120) {
-          Animated.timing(pan, {
-            toValue: { x: -Dimensions.get('window').width, y: 0 },
-            duration: 150,
-            useNativeDriver: true,
-          }).start(() => {
-            onSwipeLeft();
-            pan.setValue({ x: 0, y: 0 });
-          });
+        if (gestureState.dx < -100 && !isActionTriggered) {
+          setIsActionTriggered(true);
+          onSwipeLeft();
+          // Reset after action is triggered
+          setTimeout(() => {
+            Animated.spring(pan, {
+              toValue: { x: 0, y: 0 },
+              useNativeDriver: true,
+            }).start(() => {
+              setIsActionTriggered(false);
+            });
+          }, 200);
         } else {
           Animated.spring(pan, {
             toValue: { x: 0, y: 0 },
@@ -61,6 +66,16 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ children, onSwipeLeft }) 
       },
     })
   ).current;
+
+  React.useEffect(() => {
+    // Reset card position if it was swiped but modal closed
+    if (!isActionTriggered) {
+      Animated.spring(pan, {
+        toValue: { x: 0, y: 0 },
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isActionTriggered]);
 
   return (
     <View style={localStyles.swipeContainer}>
@@ -130,25 +145,44 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const allRooms = await roomService.fetchRoomsWithResidents(propertyId);
-      const currentRoom = allRooms.find((r) => r.id === roomId);
-      if (currentRoom) {
+      // Check if room data is passed via route params (from RoomsListScreen)
+      if (route.params?.room && route.params?.residents) {
+        // Use passed data directly - no need to fetch
         setRoom({
-          id: currentRoom.id,
-          room_no: currentRoom.room_no,
-          capacity: currentRoom.capacity,
-          monthly_rent: currentRoom.monthly_rent,
-          propertyId: currentRoom.propertyId,
+          id: route.params.room.id,
+          room_no: route.params.room.room_no,
+          capacity: route.params.room.capacity,
+          monthly_rent: route.params.room.monthly_rent,
+          propertyId: route.params.room.propertyId,
         });
-        setResidents(currentRoom.residents);
+        setResidents(route.params.residents);
 
         // Prep fields for edit room
-        setRoomNo(currentRoom.room_no);
-        setRoomCapacity(currentRoom.capacity.toString());
-        setRoomRent(currentRoom.monthly_rent.toString());
+        setRoomNo(route.params.room.room_no);
+        setRoomCapacity(route.params.room.capacity.toString());
+        setRoomRent(route.params.room.monthly_rent.toString());
       } else {
-        Alert.alert('Error', 'Room not found');
-        navigation.goBack();
+        // Fallback to fetching if no data passed (for direct navigation)
+        const allRooms = await roomService.fetchRoomsWithResidents(propertyId);
+        const currentRoom = allRooms.find((r) => r.id === roomId);
+        if (currentRoom) {
+          setRoom({
+            id: currentRoom.id,
+            room_no: currentRoom.room_no,
+            capacity: currentRoom.capacity,
+            monthly_rent: currentRoom.monthly_rent,
+            propertyId: currentRoom.propertyId,
+          });
+          setResidents(currentRoom.residents);
+
+          // Prep fields for edit room
+          setRoomNo(currentRoom.room_no);
+          setRoomCapacity(currentRoom.capacity.toString());
+          setRoomRent(currentRoom.monthly_rent.toString());
+        } else {
+          Alert.alert('Error', 'Room not found');
+          navigation.goBack();
+        }
       }
     } catch (error) {
       console.error('Error loading room details:', error);
@@ -156,7 +190,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     } finally {
       setLoading(false);
     }
-  }, [propertyId, roomId, navigation]);
+  }, [propertyId, roomId, navigation, route.params]);
 
   useEffect(() => {
     loadData();
@@ -338,11 +372,11 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       Alert.alert('Validation Error', 'Please enter resident name');
       return;
     }
-    if (!resEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resEmail)) {
+    if (resEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resEmail)) {
       Alert.alert('Validation Error', 'Please enter a valid email address');
       return;
     }
-    if (!resPhone.trim() || resPhone.replace(/\D/g, '').length < 8) {
+    if (resPhone.trim() && resPhone.replace(/\D/g, '').length < 8) {
       Alert.alert('Validation Error', 'Please enter a valid mobile number');
       return;
     }
@@ -795,7 +829,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Email ID *</Text>
+                  <Text style={styles.label}>Email ID</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Enter email address"
@@ -807,7 +841,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Mobile Number *</Text>
+                  <Text style={styles.label}>Mobile Number</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Enter phone number"
