@@ -26,7 +26,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -156,13 +155,6 @@ const LoginScreen = ({ navigation: navigationProp }: any) => {
             error={passwordError}
           />
 
-
-          {/* Remember Me Checkbox */}
-          <ModernCheckbox
-            label="Remember me"
-            value={rememberMe}
-            onValueChange={setRememberMe}
-          />
 
           {/* Forgot Password Link */}
           <TouchableOpacity 

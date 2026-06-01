@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,10 +32,6 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
   const [rooms, setRooms] = useState<RoomWithResidents[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Cache management - track last fetch time to avoid unnecessary refetches
-  const lastFetchTimeRef = useRef<number | null>(null);
-  const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-
   // Add Room Modal State
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newRoomNo, setNewRoomNo] = useState('');
@@ -58,22 +54,13 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
 
   useFocusEffect(
     useCallback(() => {
-      const now = Date.now();
-      const timeSinceLastFetch = lastFetchTimeRef.current ? now - lastFetchTimeRef.current : null;
-
-      // Only fetch if data doesn't exist or cache expired (older than 5 minutes)
-      if (!timeSinceLastFetch || timeSinceLastFetch > CACHE_DURATION_MS) {
-        fetchRooms();
-        lastFetchTimeRef.current = now;
-      }
-      // If cache is fresh, data remains displayed without refetch
+      fetchRooms();
     }, [fetchRooms])
   );
 
   // Force refresh function for manual refresh or after add/delete room
   const forceFetchRooms = useCallback(async () => {
     await fetchRooms();
-    lastFetchTimeRef.current = Date.now();
   }, [fetchRooms]);
 
   const handleAddRoom = async () => {

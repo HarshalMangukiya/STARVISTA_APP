@@ -10,6 +10,8 @@ import {
   Alert,
   FlatList,
   ToastAndroid,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -216,10 +218,15 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
   return (
     <View style={styles.container}>
       <View style={[styles.statusBarShield, { height: insets.top, backgroundColor: '#fff' }]} />
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: insets.top }}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={insets.top + 60}
       >
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: insets.top }}
+        >
         {/* Header */}
         <View style={[styles.header, { paddingTop: 10 }]}>
         <Text style={styles.headerTitle}>Edit Property</Text>
@@ -339,7 +346,8 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
       </View>
 
       <View style={{ height: 20 }} />
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };

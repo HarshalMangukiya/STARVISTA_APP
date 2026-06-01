@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Timestamp } from '@react-native-firebase/firestore';
 import { roomService } from '../services/roomService';
 import { Room, Resident } from '../types';
 import styles from '../styles/styles';
@@ -142,11 +143,80 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   const [showPaymentEndDatePicker, setShowPaymentEndDatePicker] = useState(false);
   const [quickSelectOption, setQuickSelectOption] = useState<'1' | '3' | '6' | 'custom' | null>(null);
 
-  const loadData = useCallback(async () => {
+  const patchResidentLocally = useCallback(
+    (residentId: string, updates: Partial<Resident>) => {
+      setResidents((previousResidents) =>
+        previousResidents.map((resident) =>
+          resident.id === residentId
+            ? {
+                ...resident,
+                ...updates,
+                room_no: updates.room_no ?? room?.room_no ?? resident.room_no,
+                monthly_rent: updates.monthly_rent ?? room?.monthly_rent ?? resident.monthly_rent,
+                roomNumber: updates.room_no ?? room?.room_no ?? resident.roomNumber,
+                rentAmount: updates.monthly_rent ?? room?.monthly_rent ?? resident.rentAmount,
+                studentName: updates.name ?? resident.studentName ?? resident.name,
+                emailId: updates.email ?? resident.emailId ?? resident.email,
+                mobileNumber: updates.phone ?? resident.mobileNumber ?? resident.phone,
+                startDate: updates.start_date ?? resident.startDate ?? resident.start_date,
+                endDate: updates.end_date ?? resident.endDate ?? resident.end_date,
+                createdAt: resident.createdAt ?? resident.created_at,
+              }
+            : resident
+        )
+      );
+    },
+    [room]
+  );
+
+  const addResidentLocally = useCallback(
+    (residentData: {
+      name: string;
+      gender: string;
+      email: string;
+      phone: string;
+      start_date: string;
+      end_date: string;
+      remarks?: string;
+    }) => {
+      const now = Timestamp.now();
+      const optimisticResident: Resident = {
+        id: `temp-${Date.now()}`,
+        name: residentData.name,
+        gender: residentData.gender,
+        email: residentData.email,
+        phone: residentData.phone,
+        room_no: room?.room_no || '',
+        monthly_rent: room?.monthly_rent || 0,
+        start_date: residentData.start_date,
+        end_date: residentData.end_date,
+        remarks: residentData.remarks || '',
+        propertyId,
+        created_at: now,
+        studentName: residentData.name,
+        emailId: residentData.email,
+        mobileNumber: residentData.phone,
+        roomNumber: room?.room_no || '',
+        rentAmount: room?.monthly_rent || 0,
+        startDate: residentData.start_date,
+        endDate: residentData.end_date,
+        createdAt: now,
+      };
+
+      setResidents((previousResidents) => [optimisticResident, ...previousResidents]);
+    },
+    [propertyId, room]
+  );
+
+  const removeResidentLocally = useCallback((residentId: string) => {
+    setResidents((previousResidents) => previousResidents.filter((resident) => resident.id !== residentId));
+  }, []);
+
+  const loadData = useCallback(async (forceRefresh: boolean = false) => {
     setLoading(true);
     try {
       // Check if room data is passed via route params (from RoomsListScreen)
-      if (route.params?.room && route.params?.residents) {
+      if (!forceRefresh && route.params?.room && route.params?.residents) {
         // Use passed data directly - no need to fetch
         setRoom({
           id: route.params.room.id,
@@ -219,7 +289,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         monthly_rent: Number(roomRent),
       });
       setRoomModalVisible(false);
-      loadData();
+      loadData(true);
       Alert.alert('Success', 'Room details updated successfully');
     } catch (error) {
       console.error('Error updating room:', error);
@@ -313,7 +383,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         }
       );
       setPaymentModalVisible(false);
-      loadData();
+      patchResidentLocally(selectedResidentForPayment.id, {
+        start_date: paymentStartDate,
+        end_date: paymentEndDate,
+      });
       Alert.alert('Success', 'Payment dates updated successfully');
     } catch (error) {
       console.error('Error updating payment dates:', error);
@@ -403,13 +476,14 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
 
       if (editingResident) {
         await roomService.updateResidentInRoom(propertyId, roomId, editingResident.id, data);
+        patchResidentLocally(editingResident.id, data);
         Alert.alert('Success', 'Resident details updated successfully');
       } else {
         await roomService.addResidentToRoom(propertyId, roomId, data);
+        addResidentLocally(data);
         Alert.alert('Success', 'Resident onboarded successfully');
       }
       setResidentModalVisible(false);
-      loadData();
     } catch (error) {
       console.error('Error saving resident:', error);
       Alert.alert('Error', 'Failed to save resident information');
@@ -432,7 +506,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
             setActionLoading(true);
             try {
               await roomService.deleteResidentFromRoom(propertyId, roomId, residentId);
-              loadData();
+              removeResidentLocally(residentId);
               Alert.alert('Success', 'Resident removed successfully');
             } catch (error) {
               console.error('Error deleting resident:', error);

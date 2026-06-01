@@ -60,55 +60,63 @@ export const roomService = {
       });
 
       // Fetch residents for all rooms in parallel
-      const roomsWithResidents = await Promise.all(
-        roomsList.map(async (room) => {
-          const residentsRef = collection(
-            firestore as any,
-            `properties/${propertyId}/rooms/${room.id}/residents`
-          );
-          const residentsSnapshot = await getDocs(query(residentsRef));
-          
-          const residents: Resident[] = [];
-          residentsSnapshot.forEach((resSnapshot: any) => {
-            const data = resSnapshot.data();
-            const startDateStr = toDateString(data.start_date);
-            const endDateStr = toDateString(data.end_date);
-            residents.push({
-              id: resSnapshot.id,
-              name: data.name || '',
-              gender: data.gender || '',
-              email: data.email || '',
-              phone: data.phone || '',
-              room_no: room.room_no,
-              monthly_rent: room.monthly_rent,
-              start_date: startDateStr,
-              end_date: endDateStr,
-              remarks: data.remarks || '',
-              propertyId: propertyId,
-              created_at: data.created_at || Timestamp.now(),
-              
-              // Compatibility / Legacy fields
-              studentName: data.name || '',
-              emailId: data.email || '',
-              mobileNumber: data.phone || '',
-              roomNumber: room.room_no,
-              rentAmount: room.monthly_rent,
-              startDate: startDateStr,
-              endDate: endDateStr,
-              createdAt: data.created_at || Timestamp.now(),
-            } as Resident);
-          });
+      // Fetch residents for all rooms in chunks to prevent Android bridge stall
+      const CHUNK_SIZE = 5;
+      const roomsWithResidents = [];
 
-          return {
-            ...room,
-            residents: residents.sort((a, b) => {
-              const timeA = a.created_at?.toMillis?.() || 0;
-              const timeB = b.created_at?.toMillis?.() || 0;
-              return timeB - timeA;
-            }),
-          };
-        })
-      );
+      for (let i = 0; i < roomsList.length; i += CHUNK_SIZE) {
+        const chunk = roomsList.slice(i, i + CHUNK_SIZE);
+        const chunkResults = await Promise.all(
+          chunk.map(async (room) => {
+            const residentsRef = collection(
+              firestore as any,
+              `properties/${propertyId}/rooms/${room.id}/residents`
+            );
+            const residentsSnapshot = await getDocs(query(residentsRef));
+
+            const residents: Resident[] = [];
+            residentsSnapshot.forEach((resSnapshot: any) => {
+              const data = resSnapshot.data();
+              const startDateStr = toDateString(data.start_date);
+              const endDateStr = toDateString(data.end_date);
+              residents.push({
+                id: resSnapshot.id,
+                name: data.name || '',
+                gender: data.gender || '',
+                email: data.email || '',
+                phone: data.phone || '',
+                room_no: room.room_no,
+                monthly_rent: room.monthly_rent,
+                start_date: startDateStr,
+                end_date: endDateStr,
+                remarks: data.remarks || '',
+                propertyId: propertyId,
+                created_at: data.created_at || Timestamp.now(),
+
+                // Compatibility / Legacy fields
+                studentName: data.name || '',
+                emailId: data.email || '',
+                mobileNumber: data.phone || '',
+                roomNumber: room.room_no,
+                rentAmount: room.monthly_rent,
+                startDate: startDateStr,
+                endDate: endDateStr,
+                createdAt: data.created_at || Timestamp.now(),
+              } as Resident);
+            });
+
+            return {
+              ...room,
+              residents: residents.sort((a, b) => {
+                const timeA = a.created_at?.toMillis?.() || 0;
+                const timeB = b.created_at?.toMillis?.() || 0;
+                return timeB - timeA;
+              }),
+            };
+          })
+        );
+        roomsWithResidents.push(...chunkResults);
+      }
 
       // Sort rooms by room number numerically or alphabetically
       return roomsWithResidents.sort((a, b) => {
@@ -116,6 +124,81 @@ export const roomService = {
       });
     } catch (error) {
       console.error('[roomService] Error fetching rooms with residents:', error);
+      throw error;
+    }
+  },
+
+  // Fetch a single room with its residents (optimized for faster updates)
+  fetchRoomWithResidents: async (
+    propertyId: string,
+    roomId: string
+  ): Promise<(Room & { residents: Resident[] }) | null> => {
+    try {
+      console.log(`[roomService] Fetching single room ${roomId} for property: ${propertyId}`);
+      const roomRef = doc(firestore as any, `properties/${propertyId}/rooms`, roomId);
+      const roomSnapshot = await getDoc(roomRef);
+
+      if (!roomSnapshot.exists()) {
+        return null;
+      }
+
+      const roomData = roomSnapshot.data();
+      const room: Room = {
+        id: roomSnapshot.id,
+        room_no: roomData.room_no || '',
+        capacity: Number(roomData.capacity) || 0,
+        monthly_rent: Number(roomData.monthly_rent) || 0,
+        propertyId: propertyId,
+      };
+
+      // Fetch residents for this specific room
+      const residentsRef = collection(
+        firestore as any,
+        `properties/${propertyId}/rooms/${roomId}/residents`
+      );
+      const residentsSnapshot = await getDocs(query(residentsRef));
+
+      const residents: Resident[] = [];
+      residentsSnapshot.forEach((resSnapshot: any) => {
+        const data = resSnapshot.data();
+        const startDateStr = toDateString(data.start_date);
+        const endDateStr = toDateString(data.end_date);
+        residents.push({
+          id: resSnapshot.id,
+          name: data.name || '',
+          gender: data.gender || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          room_no: room.room_no,
+          monthly_rent: room.monthly_rent,
+          start_date: startDateStr,
+          end_date: endDateStr,
+          remarks: data.remarks || '',
+          propertyId: propertyId,
+          created_at: data.created_at || Timestamp.now(),
+
+          // Compatibility / Legacy fields
+          studentName: data.name || '',
+          emailId: data.email || '',
+          mobileNumber: data.phone || '',
+          roomNumber: room.room_no,
+          rentAmount: room.monthly_rent,
+          startDate: startDateStr,
+          endDate: endDateStr,
+          createdAt: data.created_at || Timestamp.now(),
+        } as Resident);
+      });
+
+      return {
+        ...room,
+        residents: residents.sort((a, b) => {
+          const timeA = a.created_at?.toMillis?.() || 0;
+          const timeB = b.created_at?.toMillis?.() || 0;
+          return timeB - timeA;
+        }),
+      };
+    } catch (error) {
+      console.error('[roomService] Error fetching single room with residents:', error);
       throw error;
     }
   },
@@ -128,7 +211,7 @@ export const roomService = {
     try {
       console.log(`[roomService] Adding room to property: ${propertyId}`, roomData);
       const roomsRef = collection(firestore as any, `properties/${propertyId}/rooms`);
-      
+
       const docRef = await addDoc(roomsRef, {
         room_no: roomData.room_no,
         capacity: Number(roomData.capacity),
@@ -158,7 +241,7 @@ export const roomService = {
     try {
       console.log(`[roomService] Updating room ${roomId} in property ${propertyId}`, updates);
       const roomRef = doc(firestore as any, `properties/${propertyId}/rooms`, roomId);
-      
+
       const updateData: any = {};
       if (updates.room_no !== undefined) updateData.room_no = updates.room_no;
       if (updates.capacity !== undefined) updateData.capacity = Number(updates.capacity);
