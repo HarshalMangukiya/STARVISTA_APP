@@ -433,8 +433,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     setResGender(resident.gender || 'Male');
     setResEmail(resident.email);
     setResPhone(resident.phone);
-    setResStartDate(resident.start_date);
-    setResEndDate(resident.end_date);
+    // For payment tracking, carry the previous checkout forward as the new check-in.
+    // Leave checkout blank so the user can choose the next billing end date manually.
+    setResStartDate(resident.end_date || resident.start_date);
+    setResEndDate('');
     setResRemarks(resident.remarks || '');
     setResidentModalVisible(true);
   };
