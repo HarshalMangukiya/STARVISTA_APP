@@ -5,6 +5,7 @@ import { auth } from '../config/firebase';
 interface User {
   email: string;
   role: string;
+  photoURL?: string;
 }
 
 interface AuthContextType {

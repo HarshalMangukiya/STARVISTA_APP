@@ -6,6 +6,7 @@ import { auth, firestore } from '../config/firebase';
 interface User {
   email: string;
   role: string;
+  photoURL?: string;
 }
 
 const STORAGE_KEYS = {

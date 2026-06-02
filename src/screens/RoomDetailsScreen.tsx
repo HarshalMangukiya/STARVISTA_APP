@@ -125,6 +125,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   const [resPhone, setResPhone] = useState('');
   const [resStartDate, setResStartDate] = useState('');
   const [resEndDate, setResEndDate] = useState('');
+  const [selectedResDuration, setSelectedResDuration] = useState<number | null>(null);
   const [resRemarks, setResRemarks] = useState('');
 
   // Date picker visibility
@@ -422,6 +423,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
 
     setResStartDate(today.toISOString().split('T')[0]);
     setResEndDate(nextMonth.toISOString().split('T')[0]);
+    setSelectedResDuration(1); // Default to 1 Month
     setResRemarks('');
     setResidentModalVisible(true);
   };
@@ -434,11 +436,36 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     setResEmail(resident.email);
     setResPhone(resident.phone);
     // For payment tracking, carry the previous checkout forward as the new check-in.
-    // Leave checkout blank so the user can choose the next billing end date manually.
-    setResStartDate(resident.end_date || resident.start_date);
-    setResEndDate('');
+    // Auto-select 1 month check-out date from the start date.
+    const startVal = resident.end_date || resident.start_date || new Date().toISOString().split('T')[0];
+    setResStartDate(startVal);
+    
+    const startDateObj = new Date(startVal);
+    if (!isNaN(startDateObj.getTime())) {
+      const newEnd = new Date(startDateObj);
+      newEnd.setMonth(newEnd.getMonth() + 1);
+      setResEndDate(newEnd.toISOString().split('T')[0]);
+    } else {
+      setResEndDate('');
+    }
+    setSelectedResDuration(1); // Default to 1 Month
+    
     setResRemarks(resident.remarks || '');
     setResidentModalVisible(true);
+  };
+
+  // Quick Select handler for Onboard/Edit modal
+  const handleModalQuickSelect = (months: number) => {
+    setSelectedResDuration(months);
+    const start = resStartDate ? new Date(resStartDate) : new Date();
+    if (!isNaN(start.getTime())) {
+      if (!resStartDate) {
+        setResStartDate(start.toISOString().split('T')[0]);
+      }
+      const newEnd = new Date(start);
+      newEnd.setMonth(newEnd.getMonth() + months);
+      setResEndDate(newEnd.toISOString().split('T')[0]);
+    }
   };
 
   // Save Resident (Add or Edit)
@@ -958,6 +985,61 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                   />
                 </View>
 
+                {/* Quick Select Duration Buttons */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Quick Select Duration</Text>
+                  <View style={localStyles.modalQuickSelectContainer}>
+                    <TouchableOpacity
+                      style={[
+                        localStyles.modalQuickSelectBtn,
+                        selectedResDuration === 1 && localStyles.modalQuickSelectBtnActive,
+                      ]}
+                      onPress={() => handleModalQuickSelect(1)}
+                    >
+                      <Text
+                        style={[
+                          localStyles.modalQuickSelectText,
+                          selectedResDuration === 1 && localStyles.modalQuickSelectTextActive,
+                        ]}
+                      >
+                        1 Month
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        localStyles.modalQuickSelectBtn,
+                        selectedResDuration === 3 && localStyles.modalQuickSelectBtnActive,
+                      ]}
+                      onPress={() => handleModalQuickSelect(3)}
+                    >
+                      <Text
+                        style={[
+                          localStyles.modalQuickSelectText,
+                          selectedResDuration === 3 && localStyles.modalQuickSelectTextActive,
+                        ]}
+                      >
+                        3 Month
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        localStyles.modalQuickSelectBtn,
+                        selectedResDuration === 6 && localStyles.modalQuickSelectBtnActive,
+                      ]}
+                      onPress={() => handleModalQuickSelect(6)}
+                    >
+                      <Text
+                        style={[
+                          localStyles.modalQuickSelectText,
+                          selectedResDuration === 6 && localStyles.modalQuickSelectTextActive,
+                        ]}
+                      >
+                        6 Month
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <View style={styles.dateRow}>
                   <View style={styles.dateField}>
                     <Text style={styles.label}>Check-in Date *</Text>
@@ -1020,7 +1102,18 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
           display="default"
           onChange={(event, date) => {
             setShowStartDatePicker(false);
-            if (date) setResStartDate(date.toISOString().split('T')[0]);
+            if (date) {
+              const newStart = date.toISOString().split('T')[0];
+              setResStartDate(newStart);
+              // Auto-select checkout date based on current selected duration or default to 1 month
+              const duration = selectedResDuration || 1;
+              const startObj = new Date(newStart);
+              if (!isNaN(startObj.getTime())) {
+                const newEnd = new Date(startObj);
+                newEnd.setMonth(newEnd.getMonth() + duration);
+                setResEndDate(newEnd.toISOString().split('T')[0]);
+              }
+            }
           }}
         />
       )}
@@ -1032,7 +1125,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
           display="default"
           onChange={(event, date) => {
             setShowEndDatePicker(false);
-            if (date) setResEndDate(date.toISOString().split('T')[0]);
+            if (date) {
+              setResEndDate(date.toISOString().split('T')[0]);
+              setSelectedResDuration(null); // Clear duration selection if manually edited
+            }
           }}
         />
       )}
@@ -1724,6 +1820,34 @@ const localStyles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  modalQuickSelectContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  modalQuickSelectBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#e8e8e8',
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalQuickSelectBtnActive: {
+    borderColor: '#6366f1',
+    backgroundColor: '#eef2ff',
+  },
+  modalQuickSelectText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  modalQuickSelectTextActive: {
+    color: '#6366f1',
   },
 });
 
