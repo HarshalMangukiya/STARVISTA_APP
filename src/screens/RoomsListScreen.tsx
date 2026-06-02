@@ -27,7 +27,7 @@ interface RoomsListScreenProps {
 type RoomWithResidents = Room & { residents: Resident[] };
 
 const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) => {
-  const { propertyId, propertyName } = route.params;
+  const { propertyId, name } = route.params;
   const insets = useSafeAreaInsets();
   const [rooms, setRooms] = useState<RoomWithResidents[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,12 +42,31 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
   const fetchRooms = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await roomService.fetchRoomsWithResidents(propertyId);
-      setRooms(data);
+      // 1. Fetch only rooms first (very fast, ~200ms)
+      const roomsData = await roomService.fetchRooms(propertyId);
+      
+      // Initialize state with rooms immediately so user sees the list
+      const initialRooms: RoomWithResidents[] = roomsData.map(room => ({
+        ...room,
+        residents: [] // Empty initially
+      }));
+      setRooms(initialRooms);
+      setLoading(false); // Stop loading spinner so screen appears instantly!
+
+      // 2. Fetch residents for each room asynchronously in the background
+      roomsData.forEach(async (room) => {
+        try {
+          const residents = await roomService.fetchResidentsForRoom(propertyId, room);
+          setRooms(prevRooms => 
+            prevRooms.map(r => r.id === room.id ? { ...r, residents } : r)
+          );
+        } catch (err) {
+          console.error(`Error loading residents for room ${room.id}:`, err);
+        }
+      });
     } catch (error) {
       console.error('Error fetching rooms:', error);
       Alert.alert('Error', 'Failed to load rooms');
-    } finally {
       setLoading(false);
     }
   }, [propertyId]);
@@ -163,7 +182,7 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
           navigation.navigate('RoomDetails', {
             roomId: item.id,
             propertyId: propertyId,
-            propertyName: propertyName,
+            name: name,
             room: item,
             residents: item.residents,
           })
@@ -224,7 +243,7 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{propertyName}</Text>
+          <Text style={styles.headerTitle}>{name}</Text>
           <Text style={styles.headerSubtitle}>
             Managing {rooms.length} rooms
           </Text>

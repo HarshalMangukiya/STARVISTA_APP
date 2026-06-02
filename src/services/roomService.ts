@@ -39,6 +39,85 @@ const toTimestamp = (dateString: string): Timestamp => {
 };
 
 export const roomService = {
+  // Fetch all rooms for a property (without residents)
+  fetchRooms: async (propertyId: string): Promise<Room[]> => {
+    try {
+      const roomsRef = collection(firestore as any, `properties/${propertyId}/rooms`);
+      const q = query(roomsRef);
+      const querySnapshot = await getDocs(q);
+
+      const roomsList: Room[] = [];
+      querySnapshot.forEach((docSnapshot: any) => {
+        const data = docSnapshot.data();
+        roomsList.push({
+          id: docSnapshot.id,
+          room_no: data.room_no || '',
+          capacity: Number(data.capacity) || 0,
+          monthly_rent: Number(data.monthly_rent) || 0,
+          propertyId: propertyId,
+        });
+      });
+
+      return roomsList.sort((a, b) => {
+        return a.room_no.localeCompare(b.room_no, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    } catch (error) {
+      console.error('[roomService] Error fetching rooms:', error);
+      throw error;
+    }
+  },
+
+  // Fetch residents for a specific room
+  fetchResidentsForRoom: async (propertyId: string, room: Room): Promise<Resident[]> => {
+    try {
+      const residentsRef = collection(
+        firestore as any,
+        `properties/${propertyId}/rooms/${room.id}/residents`
+      );
+      const residentsSnapshot = await getDocs(query(residentsRef));
+
+      const residents: Resident[] = [];
+      residentsSnapshot.forEach((resSnapshot: any) => {
+        const data = resSnapshot.data();
+        const startDateStr = toDateString(data.start_date);
+        const endDateStr = toDateString(data.end_date);
+        residents.push({
+          id: resSnapshot.id,
+          name: data.name || '',
+          gender: data.gender || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          room_no: room.room_no,
+          monthly_rent: room.monthly_rent,
+          start_date: startDateStr,
+          end_date: endDateStr,
+          remarks: data.remarks || '',
+          propertyId: propertyId,
+          created_at: data.created_at || Timestamp.now(),
+
+          // Compatibility / Legacy fields
+          studentName: data.name || '',
+          emailId: data.email || '',
+          mobileNumber: data.phone || '',
+          roomNumber: room.room_no,
+          rentAmount: room.monthly_rent,
+          startDate: startDateStr,
+          endDate: endDateStr,
+          createdAt: data.created_at || Timestamp.now(),
+        } as Resident);
+      });
+
+      return residents.sort((a, b) => {
+        const timeA = a.created_at?.toMillis?.() || 0;
+        const timeB = b.created_at?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
+    } catch (error) {
+      console.error('[roomService] Error fetching residents for room:', error);
+      throw error;
+    }
+  },
+
   // Fetch all rooms for a property (with residents nested)
   fetchRoomsWithResidents: async (propertyId: string): Promise<(Room & { residents: Resident[] })[]> => {
     try {
@@ -60,63 +139,55 @@ export const roomService = {
       });
 
       // Fetch residents for all rooms in parallel
-      // Fetch residents for all rooms in chunks to prevent Android bridge stall
-      const CHUNK_SIZE = 5;
-      const roomsWithResidents = [];
+      const roomsWithResidents = await Promise.all(
+        roomsList.map(async (room) => {
+          const residentsRef = collection(
+            firestore as any,
+            `properties/${propertyId}/rooms/${room.id}/residents`
+          );
+          const residentsSnapshot = await getDocs(query(residentsRef));
 
-      for (let i = 0; i < roomsList.length; i += CHUNK_SIZE) {
-        const chunk = roomsList.slice(i, i + CHUNK_SIZE);
-        const chunkResults = await Promise.all(
-          chunk.map(async (room) => {
-            const residentsRef = collection(
-              firestore as any,
-              `properties/${propertyId}/rooms/${room.id}/residents`
-            );
-            const residentsSnapshot = await getDocs(query(residentsRef));
+          const residents: Resident[] = [];
+          residentsSnapshot.forEach((resSnapshot: any) => {
+            const data = resSnapshot.data();
+            const startDateStr = toDateString(data.start_date);
+            const endDateStr = toDateString(data.end_date);
+            residents.push({
+              id: resSnapshot.id,
+              name: data.name || '',
+              gender: data.gender || '',
+              email: data.email || '',
+              phone: data.phone || '',
+              room_no: room.room_no,
+              monthly_rent: room.monthly_rent,
+              start_date: startDateStr,
+              end_date: endDateStr,
+              remarks: data.remarks || '',
+              propertyId: propertyId,
+              created_at: data.created_at || Timestamp.now(),
 
-            const residents: Resident[] = [];
-            residentsSnapshot.forEach((resSnapshot: any) => {
-              const data = resSnapshot.data();
-              const startDateStr = toDateString(data.start_date);
-              const endDateStr = toDateString(data.end_date);
-              residents.push({
-                id: resSnapshot.id,
-                name: data.name || '',
-                gender: data.gender || '',
-                email: data.email || '',
-                phone: data.phone || '',
-                room_no: room.room_no,
-                monthly_rent: room.monthly_rent,
-                start_date: startDateStr,
-                end_date: endDateStr,
-                remarks: data.remarks || '',
-                propertyId: propertyId,
-                created_at: data.created_at || Timestamp.now(),
+              // Compatibility / Legacy fields
+              studentName: data.name || '',
+              emailId: data.email || '',
+              mobileNumber: data.phone || '',
+              roomNumber: room.room_no,
+              rentAmount: room.monthly_rent,
+              startDate: startDateStr,
+              endDate: endDateStr,
+              createdAt: data.created_at || Timestamp.now(),
+            } as Resident);
+          });
 
-                // Compatibility / Legacy fields
-                studentName: data.name || '',
-                emailId: data.email || '',
-                mobileNumber: data.phone || '',
-                roomNumber: room.room_no,
-                rentAmount: room.monthly_rent,
-                startDate: startDateStr,
-                endDate: endDateStr,
-                createdAt: data.created_at || Timestamp.now(),
-              } as Resident);
-            });
-
-            return {
-              ...room,
-              residents: residents.sort((a, b) => {
-                const timeA = a.created_at?.toMillis?.() || 0;
-                const timeB = b.created_at?.toMillis?.() || 0;
-                return timeB - timeA;
-              }),
-            };
-          })
-        );
-        roomsWithResidents.push(...chunkResults);
-      }
+          return {
+            ...room,
+            residents: residents.sort((a, b) => {
+              const timeA = a.created_at?.toMillis?.() || 0;
+              const timeB = b.created_at?.toMillis?.() || 0;
+              return timeB - timeA;
+            }),
+          };
+        })
+      );
 
       // Sort rooms by room number numerically or alphabetically
       return roomsWithResidents.sort((a, b) => {

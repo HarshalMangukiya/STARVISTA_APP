@@ -119,7 +119,7 @@ const DashboardScreen = ({ navigation }: any) => {
         onPress={() =>
           navigation.navigate('RoomsList', {
             propertyId: item.id,
-            propertyName: item.propertyName,
+            name: item.name,
           })
         }
         onLongPress={() => handleLongPress(item.id!)}
@@ -127,22 +127,20 @@ const DashboardScreen = ({ navigation }: any) => {
       >
         {/* Property Image */}
         <Image
-          source={{ uri: item.imageUrls?.[0] || (item as any).imageUrl || 'https://via.placeholder.com/300x200' }}
+          source={{ uri: item.image_url || 'https://via.placeholder.com/300x200' }}
           style={styles.propertyImage}
         />
 
         {/* Property Info */}
         <View style={styles.propertyInfo}>
           <Text style={styles.propertyName} numberOfLines={1}>
-            {item.propertyName}
+            {item.name}
           </Text>
           <Text style={styles.propertyAddress} numberOfLines={2}>
             {item.address}
           </Text>
           <Text style={styles.imageCount}>
-            {(item.imageUrls && item.imageUrls.length > 0) || (item as any).imageUrl
-              ? `${item.imageUrls?.length || 1} image${(item.imageUrls?.length || 1) > 1 ? 's' : ''}`
-              : 'No image'}
+            {item.image_url ? '1 image' : 'No image'}
           </Text>
         </View>
       </TouchableOpacity>

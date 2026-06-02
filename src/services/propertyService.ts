@@ -125,13 +125,12 @@ export const saveProperty = async (
     }
 
     console.log(`👤 Current user: ${currentUser.uid}`);
-    console.log(`🏠 Saving property: ${property.name || property.propertyName}`);
+    console.log(`🏠 Saving property: ${property.name}`);
 
-    // Support both new and legacy field names
     const propertyData = {
-      name: property.name || property.propertyName || '',
-      description: property.description || property.address || '',
-      image_url: property.image_url || (property.imageUrls?.[0] || ''),
+      name: property.name || '',
+      address: property.address || '',
+      image_url: property.image_url || '',
       total_rooms: property.total_rooms || 0,
       owner_id: currentUser.uid,
       created_at: Timestamp.now(),
@@ -174,12 +173,6 @@ export const fetchUserProperties = async (): Promise<Property[]> => {
       properties.push({
         id: docSnapshot.id,
         ...data,
-        // Map new field names to legacy field names for compatibility
-        propertyName: data.name || data.propertyName,
-        address: data.description || data.address,
-        imageUrls: data.image_url ? [data.image_url] : data.imageUrls,
-        ownerId: data.owner_id || data.ownerId,
-        createdAt: data.created_at || data.createdAt,
       } as Property);
     });
 
@@ -206,12 +199,6 @@ export const fetchAllProperties = async (): Promise<Property[]> => {
       properties.push({
         id: docSnapshot.id,
         ...data,
-        // Map new field names to legacy field names for compatibility
-        propertyName: data.name || data.propertyName,
-        address: data.description || data.address,
-        imageUrls: data.image_url ? [data.image_url] : data.imageUrls,
-        ownerId: data.owner_id || data.ownerId,
-        createdAt: data.created_at || data.createdAt,
       } as Property);
     });
 
@@ -239,12 +226,11 @@ export const deleteProperty = async (propertyId: string): Promise<void> => {
     // Fetch the property to get image URL
     const propertyRef = doc(firestore as any, 'properties', propertyId);
     const propertySnap = await getDoc(propertyRef) as any;
-    
+
     const propertyData: Property | undefined = propertySnap.data();
 
-    // Log image info for reference (actual deletion via Cloudinary dashboard)
-    if (propertyData?.imageUrls && propertyData.imageUrls.length > 0) {
-      console.log('📷 Image reference: ' + propertyData.imageUrls[0].substring(0, 60) + '...');
+    if (propertyData?.image_url) {
+      console.log('📷 Image reference: ' + propertyData.image_url.substring(0, 60) + '...');
       console.log('    Note: To delete from Cloudinary, use dashboard');
     }
 
@@ -263,7 +249,7 @@ export const deleteProperty = async (propertyId: string): Promise<void> => {
  */
 export const updateProperty = async (
   propertyId: string,
-  updates: Partial<Omit<Property, 'id' | 'createdAt' | 'ownerId'>>
+  updates: Partial<Omit<Property, 'id' | 'created_at' | 'owner_id'>>
 ): Promise<void> => {
   try {
     const currentUser = auth.currentUser;
@@ -272,7 +258,7 @@ export const updateProperty = async (
     }
 
     console.log(`🏠 Updating property ID: ${propertyId}`);
-    
+
     const docRef = doc(firestore as any, 'properties', propertyId);
     console.log('💾 Writing updates to Firestore...');
     await updateDoc(docRef, updates);
@@ -303,7 +289,7 @@ export const getProperty = async (propertyId: string): Promise<Property | null> 
       ...propertySnap.data(),
     } as Property;
 
-    console.log(`✅ Property fetched: ${property.propertyName}`);
+    console.log(`✅ Property fetched: ${property.name}`);
     return property;
   } catch (error: any) {
     console.error('❌ Error fetching property:', error);

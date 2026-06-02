@@ -34,4 +34,3 @@ export const getValidationError = (
       return null;
   }
 };
-

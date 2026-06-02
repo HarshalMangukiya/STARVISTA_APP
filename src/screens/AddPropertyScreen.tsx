@@ -68,7 +68,7 @@ const AddPropertyScreen = ({ navigation }: any) => {
       return false;
     }
     if (!address.trim()) {
-      Alert.alert('Validation Error', 'Please enter address');
+      Alert.alert('Validation Error', 'Please enter Address');
       return false;
     }
     // Images are now OPTIONAL
@@ -93,13 +93,9 @@ const AddPropertyScreen = ({ navigation }: any) => {
       console.log(`👤 User ID: ${currentUser.uid}`);
       console.log(`📸 Image to upload: ${selectedImage ? 1 : 0}`);
 
-      // Save property first to get ID, then upload image if selected
       const propertyId = await saveProperty({
-        propertyName: propertyName.trim(),
-        address: address.trim(),
-        imageUrls: [],
         name: propertyName.trim(),
-        description: address.trim(),
+        address: address.trim(),
         image_url: '',
         total_rooms: 0,
       });
@@ -110,8 +106,8 @@ const AddPropertyScreen = ({ navigation }: any) => {
         const imageUrl = await uploadPropertyImage(propertyId, selectedImage.uri);
         console.log('✓ Image uploaded');
 
-        // Update property with imageUrls array
-        await updateProperty(propertyId, { imageUrls: [imageUrl] } as any);
+        // Update property with image_url
+        await updateProperty(propertyId, { image_url: imageUrl });
         console.log('✓ Property updated with image');
       } else {
         console.log('⏭️  No image uploaded');
@@ -179,106 +175,106 @@ const AddPropertyScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <View style={[styles.statusBarShield, { height: insets.top, backgroundColor: '#fff' }]} />
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: insets.top }}
       >
         {/* Header */}
         <View style={[styles.header, { paddingTop: 10 }]}>
-        <Text style={styles.headerTitle}>New Property</Text>
-      </View>
+          <Text style={styles.headerTitle}>New Property</Text>
+        </View>
 
-      {/* Property Name Input */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Property Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter property name (e.g., Star Hostel)"
-          value={propertyName}
-          onChangeText={setPropertyName}
-          editable={!isLoading}
-          placeholderTextColor="#bbb"
-        />
-      </View>
+        {/* Property Name Input */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter property name (e.g., Star Hostel)"
+            value={propertyName}
+            onChangeText={setPropertyName}
+            editable={!isLoading}
+            placeholderTextColor="#bbb"
+          />
+        </View>
 
-      {/* Image Selection */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Upload Image (Optional)</Text>
-        <TouchableOpacity
-          style={styles.imagePickerButton}
-          onPress={handleSelectImage}
-          disabled={isLoading}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="image" size={18} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.imagePickerButtonText}>
-              {selectedImage ? 'Replace Image' : 'Add Image (0/1)'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Single Image Preview */}
-        {selectedImage && (
-          <View style={styles.singleImagePreviewContainer}>
-            <Image
-              source={{ uri: selectedImage.uri }}
-              style={styles.singleImagePreview}
-            />
-            <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={handleRemoveImage}
-            >
-              <Ionicons name="close" size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* Address Input */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Address</Text>
-        <TextInput
-          style={[styles.input, styles.multilineInput]}
-          placeholder="Enter complete address"
-          value={address}
-          onChangeText={setAddress}
-          editable={!isLoading}
-          multiline
-          numberOfLines={3}
-          placeholderTextColor="#bbb"
-        />
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, styles.discardButton]}
-          onPress={handleDiscardDraft}
-          disabled={isLoading}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="trash-outline" size={18} color="#555" style={{ marginRight: 6 }} />
-            <Text style={styles.discardButtonText}>Discard</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.saveButton]}
-          onPress={handleSaveProperty}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
+        {/* Image Selection */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Upload Image (Optional)</Text>
+          <TouchableOpacity
+            style={styles.imagePickerButton}
+            onPress={handleSelectImage}
+            disabled={isLoading}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="checkmark-done" size={18} color="#fff" style={{ marginRight: 6 }} />
-              <Text style={styles.saveButtonText}>Save Property</Text>
+              <Ionicons name="image" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.imagePickerButtonText}>
+                {selectedImage ? 'Replace Image' : 'Add Image (0/1)'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Single Image Preview */}
+          {selectedImage && (
+            <View style={styles.singleImagePreviewContainer}>
+              <Image
+                source={{ uri: selectedImage.uri }}
+                style={styles.singleImagePreview}
+              />
+              <TouchableOpacity
+                style={styles.removeImageButton}
+                onPress={handleRemoveImage}
+              >
+                <Ionicons name="close" size={18} color="#fff" />
+              </TouchableOpacity>
             </View>
           )}
-        </TouchableOpacity>
-      </View>
+        </View>
 
-      <View style={{ height: 20 }} />
+        {/* Address Input */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Address</Text>
+          <TextInput
+            style={[styles.input, styles.multilineInput]}
+            placeholder="Address"
+            value={address}
+            onChangeText={setAddress}
+            editable={!isLoading}
+            multiline
+            numberOfLines={3}
+            placeholderTextColor="#bbb"
+          />
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, styles.discardButton]}
+            onPress={handleDiscardDraft}
+            disabled={isLoading}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="trash-outline" size={18} color="#555" style={{ marginRight: 6 }} />
+              <Text style={styles.discardButtonText}>Discard</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton]}
+            onPress={handleSaveProperty}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="checkmark-done" size={18} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.saveButtonText}>Save Property</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );

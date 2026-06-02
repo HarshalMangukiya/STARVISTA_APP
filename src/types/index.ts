@@ -1,17 +1,12 @@
 export interface Property {
   id: string;
   name: string;
-  description: string;
+  address: string;
   image_url: string;
   owner_id: string;
   total_rooms: number;
   created_at: any;
-  // Legacy fields for backwards compatibility
-  propertyName?: string;
-  address?: string;
-  imageUrls?: string[];
-  ownerId?: string;
-  createdAt?: any;
+
 }
 
 export interface Room {
@@ -51,7 +46,7 @@ export interface Resident {
 export type RootStackParamList = {
   DashboardList: undefined;
   AddProperty: undefined;
-  RoomsList: { propertyId: string; propertyName: string };
-  RoomDetails: { roomId: string; propertyId: string; propertyName: string };
+  RoomsList: { propertyId: string; name: string };
+  RoomDetails: { roomId: string; propertyId: string; name: string };
 };
 

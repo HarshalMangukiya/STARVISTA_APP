@@ -102,7 +102,7 @@ interface RoomDetailsScreenProps {
 }
 
 const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation }) => {
-  const { roomId, propertyId, propertyName } = route.params;
+  const { roomId, propertyId, name } = route.params;
   const insets = useSafeAreaInsets();
 
   const [room, setRoom] = useState<Room | null>(null);
@@ -530,6 +530,20 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     );
   };
 
+  // Payment Status Logic
+  const getPaymentStatus = (endDateString: string) => {
+    if (!endDateString) return 'pending';
+    const endDate = new Date(endDateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'pending';
+    if (diffDays <= 7) return 'upcoming';
+    return 'paid';
+  };
+
   // WhatsApp Rent Reminder
   const handleWhatsAppReminder = (resident: Resident) => {
     if (!resident.phone) {
@@ -537,20 +551,30 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       return;
     }
 
+    const status = getPaymentStatus(resident.end_date);
+
     let cleanNumber = resident.phone.replace(/\D/g, '');
     if (cleanNumber.length === 10) {
       cleanNumber = '91' + cleanNumber;
     }
 
-    const formattedEndDate = new Date(resident.end_date).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
+    const endDate = new Date(resident.end_date);
+    const formattedEndDate = endDate.toLocaleDateString('en-IN', {
       year: 'numeric',
+      month: 'short',
+      day: '2-digit',
     });
 
-    const message = `Hello ${resident.name},\n\nThis is a friendly reminder that your monthly rent of ₹${room?.monthly_rent.toLocaleString('en-IN')} for Room ${room?.room_no} is due by ${formattedEndDate}.\n\nPlease make the payment at your earliest convenience.\n\nThank you!`;
-    const encodedMessage = encodeURIComponent(message);
-    const url = `https://wa.me/${cleanNumber}?text=${encodedMessage}`;
+    let message = '';
+    const roomNo = room?.room_no || 'N/A';
+    
+    if (status === 'upcoming') {
+      message = `Hello ${resident.name},\n\nYour room payment is due soon.\n\nRoom No: ${roomNo}\nDue Date: ${formattedEndDate}\n\nPlease complete your payment on time.\n\nThank you.`;
+    } else if (status === 'pending') {
+      message = `Hello ${resident.name},\n\nYour room payment is OVERDUE.\n\nRoom No: ${roomNo}\nDue Date: ${formattedEndDate}\n\nPlease make the payment immediately to avoid any inconvenience.\n\nThank you.`;
+    }
+
+    const url = message ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}` : `https://wa.me/${cleanNumber}`;
 
     Linking.canOpenURL(url).then((supported) => {
       if (supported) {
@@ -626,7 +650,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
           <View style={localStyles.roomCardHeader}>
             <View>
               <Text style={localStyles.roomCardTitle}>Room {room?.room_no}</Text>
-              <Text style={localStyles.roomPropertySub}>{propertyName}</Text>
+              <Text style={localStyles.roomPropertySub}>{name}</Text>
             </View>
             <TouchableOpacity style={localStyles.editRoomBtn} onPress={() => setRoomModalVisible(true)}>
               <Ionicons name="pencil" size={16} color="#6366f1" />
@@ -754,13 +778,19 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                       <Ionicons name="call" size={14} color="#2563eb" style={{ marginRight: 6 }} />
                       <Text style={[localStyles.compactContactBtnText, { color: '#2563eb' }]}>Call</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[localStyles.compactContactBtn, { backgroundColor: '#ecfdf5' }]}
-                      onPress={() => handleWhatsAppReminder(res)}
-                    >
-                      <Ionicons name="logo-whatsapp" size={14} color="#059669" style={{ marginRight: 6 }} />
-                      <Text style={[localStyles.compactContactBtnText, { color: '#059669' }]}>WhatsApp</Text>
-                    </TouchableOpacity>
+                    {(() => {
+                      const status = getPaymentStatus(res.end_date);
+                      const isPaid = status === 'paid';
+                      return (
+                        <TouchableOpacity
+                          style={[localStyles.compactContactBtn, { backgroundColor: '#ecfdf5' }]}
+                          onPress={() => handleWhatsAppReminder(res)}
+                        >
+                          <Ionicons name="logo-whatsapp" size={14} color="#059669" style={{ marginRight: 6 }} />
+                          <Text style={[localStyles.compactContactBtnText, { color: '#059669' }]}>WhatsApp</Text>
+                        </TouchableOpacity>
+                      );
+                    })()}
                   </View>
                 </View>
               </SwipeableCard>
