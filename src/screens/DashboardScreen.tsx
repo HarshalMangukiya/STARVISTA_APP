@@ -35,12 +35,13 @@ const DashboardScreen = ({ navigation }: any) => {
   // Fetch properties when screen is focused
   useFocusEffect(
     React.useCallback(() => {
-      loadProperties();
-    }, [])
+      const isInitial = properties.length === 0;
+      loadProperties(!isInitial);
+    }, [properties.length])
   );
 
-  const loadProperties = async () => {
-    setIsLoading(true);
+  const loadProperties = async (silent: boolean = false) => {
+    if (!silent) setIsLoading(true);
     setError(null);
     try {
       const data = await fetchUserProperties();
@@ -50,7 +51,7 @@ const DashboardScreen = ({ navigation }: any) => {
       setError('Failed to load properties');
       Alert.alert('Error', 'Failed to load properties. Please try again.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -178,7 +179,7 @@ const DashboardScreen = ({ navigation }: any) => {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={loadProperties}
+            onPress={() => loadProperties()}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>

@@ -599,6 +599,8 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       message = `Hello ${resident.name},\n\nYour room payment is due soon.\n\nRoom No: ${roomNo}\nDue Date: ${formattedEndDate}\n\nPlease complete your payment on time.\n\nThank you.`;
     } else if (status === 'pending') {
       message = `Hello ${resident.name},\n\nYour room payment is OVERDUE.\n\nRoom No: ${roomNo}\nDue Date: ${formattedEndDate}\n\nPlease make the payment immediately to avoid any inconvenience.\n\nThank you.`;
+    } else {
+      message = `Hello ${resident.name},\n\nThis is a friendly reminder regarding your room rent payment.\n\nRoom No: ${roomNo}\nNext Due Date: ${formattedEndDate}\n\nThank you.`;
     }
 
     const url = message ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}` : `https://wa.me/${cleanNumber}`;

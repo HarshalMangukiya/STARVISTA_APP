@@ -39,42 +39,60 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
   const [newRent, setNewRent] = useState('');
   const [savingRoom, setSavingRoom] = useState(false);
 
-  const fetchRooms = useCallback(async () => {
-    setLoading(true);
+  const fetchRooms = useCallback(async (silent: boolean = false) => {
+    if (!silent) setLoading(true);
     try {
       // 1. Fetch only rooms first (very fast, ~200ms)
       const roomsData = await roomService.fetchRooms(propertyId);
       
-      // Initialize state with rooms immediately so user sees the list
-      const initialRooms: RoomWithResidents[] = roomsData.map(room => ({
-        ...room,
-        residents: [] // Empty initially
-      }));
-      setRooms(initialRooms);
-      setLoading(false); // Stop loading spinner so screen appears instantly!
+      // Initialize/update state with rooms immediately so user sees the list, 
+      // but preserve existing resident information if it exists in memory to avoid flashing.
+      setRooms(prevRooms => {
+        return roomsData.map(room => {
+          const existingRoom = prevRooms.find(r => r.id === room.id);
+          return {
+            ...room,
+            residents: existingRoom ? existingRoom.residents : []
+          };
+        });
+      });
+      
+      if (!silent) setLoading(false); // Stop loading spinner so screen appears instantly!
 
-      // 2. Fetch residents for each room asynchronously in the background
-      roomsData.forEach(async (room) => {
+      // 2. Fetch residents for all rooms in parallel and update state once
+      const residentsPromises = roomsData.map(async (room) => {
         try {
           const residents = await roomService.fetchResidentsForRoom(propertyId, room);
-          setRooms(prevRooms => 
-            prevRooms.map(r => r.id === room.id ? { ...r, residents } : r)
-          );
+          return { roomId: room.id, residents };
         } catch (err) {
           console.error(`Error loading residents for room ${room.id}:`, err);
+          return { roomId: room.id, residents: [] };
         }
+      });
+
+      const residentsResults = await Promise.all(residentsPromises);
+      
+      setRooms(prevRooms => {
+        return prevRooms.map(r => {
+          const result = residentsResults.find(res => res.roomId === r.id);
+          return {
+            ...r,
+            residents: result ? result.residents : r.residents
+          };
+        });
       });
     } catch (error) {
       console.error('Error fetching rooms:', error);
       Alert.alert('Error', 'Failed to load rooms');
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [propertyId]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchRooms();
-    }, [fetchRooms])
+      const isInitial = rooms.length === 0;
+      fetchRooms(isInitial ? false : true);
+    }, [fetchRooms, rooms.length])
   );
 
   // Force refresh function for manual refresh or after add/delete room
