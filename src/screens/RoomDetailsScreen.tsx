@@ -338,8 +338,8 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   // Open modal to update payment
   const handleOpenPaymentModal = (resident: Resident) => {
     setSelectedResidentForPayment(resident);
-    setPaymentStartDate(resident.start_date);
-    setPaymentEndDate(resident.end_date);
+    setPaymentStartDate(resident.end_date || resident.start_date);
+    setPaymentEndDate('');
     setQuickSelectOption(null);
     setPaymentModalVisible(true);
   };

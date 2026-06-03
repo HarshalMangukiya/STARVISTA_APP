@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -90,15 +89,10 @@ const ProfileScreen = ({ navigation }: any) => {
         <View style={styles.profileCard}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            {user?.photoURL ? (
-              <Image source={{ uri: user.photoURL }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatar}>
-                <Icon name="account-outline" size={56} color="#7c3aed" />
-              </View>
-            )}
+            <View style={styles.avatar}>
+              <Icon name="account-outline" size={56} color="#7c3aed" />
+            </View>
           </View>
-
           {/* User Info */}
           <View style={styles.userInfoContainer}>
             <Text style={styles.userName}>{user?.email || 'User'}</Text>
