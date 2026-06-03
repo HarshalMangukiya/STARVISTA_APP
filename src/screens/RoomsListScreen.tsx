@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  InteractionManager,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,19 +40,23 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
   const [newRent, setNewRent] = useState('');
   const [savingRoom, setSavingRoom] = useState(false);
 
-  const fetchRooms = useCallback(async () => {
-    setLoading(true);
+  const fetchRooms = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       // 1. Fetch only rooms first (very fast, ~200ms)
       const roomsData = await roomService.fetchRooms(propertyId);
       
       // Initialize state with rooms immediately so user sees the list
-      const initialRooms: RoomWithResidents[] = roomsData.map(room => ({
-        ...room,
-        residents: [] // Empty initially
-      }));
-      setRooms(initialRooms);
-      setLoading(false); // Stop loading spinner so screen appears instantly!
+      setRooms(prevRooms => {
+        return roomsData.map(room => {
+          const existingRoom = prevRooms.find(r => r.id === room.id);
+          return {
+            ...room,
+            residents: existingRoom ? existingRoom.residents : []
+          };
+        });
+      });
+      setLoading(false);
 
       // 2. Fetch residents for each room asynchronously in the background
       roomsData.forEach(async (room) => {
@@ -73,7 +78,16 @@ const RoomsListScreen: React.FC<RoomsListScreenProps> = ({ route, navigation }) 
 
   useFocusEffect(
     useCallback(() => {
-      fetchRooms();
+      let isActive = true;
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (isActive) {
+          fetchRooms(true); // Silent fetch on focus
+        }
+      });
+      return () => {
+        isActive = false;
+        task.cancel();
+      };
     }, [fetchRooms])
   );
 

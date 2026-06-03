@@ -105,16 +105,22 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   const { roomId, propertyId, name } = route.params;
   const insets = useSafeAreaInsets();
 
-  const [room, setRoom] = useState<Room | null>(null);
-  const [residents, setResidents] = useState<Resident[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [room, setRoom] = useState<Room | null>(route.params?.room ? {
+    id: route.params.room.id,
+    room_no: route.params.room.room_no,
+    capacity: route.params.room.capacity,
+    monthly_rent: route.params.room.monthly_rent,
+    propertyId: route.params.room.propertyId,
+  } : null);
+  const [residents, setResidents] = useState<Resident[]>(route.params?.residents || []);
+  const [loading, setLoading] = useState(!route.params?.room);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Edit Room Modal State
   const [roomModalVisible, setRoomModalVisible] = useState(false);
-  const [roomNo, setRoomNo] = useState('');
-  const [roomCapacity, setRoomCapacity] = useState('');
-  const [roomRent, setRoomRent] = useState('');
+  const [roomNo, setRoomNo] = useState(route.params?.room?.room_no || '');
+  const [roomCapacity, setRoomCapacity] = useState(route.params?.room?.capacity?.toString() || '');
+  const [roomRent, setRoomRent] = useState(route.params?.room?.monthly_rent?.toString() || '');
 
   // Resident Modal State (Shared for Add & Edit)
   const [residentModalVisible, setResidentModalVisible] = useState(false);
@@ -213,7 +219,9 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   }, []);
 
   const loadData = useCallback(async (forceRefresh: boolean = false) => {
-    setLoading(true);
+    if (!route.params?.room || forceRefresh) {
+      setLoading(true);
+    }
     try {
       // Check if room data is passed via route params (from RoomsListScreen)
       if (!forceRefresh && route.params?.room && route.params?.residents) {
