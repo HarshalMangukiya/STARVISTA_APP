@@ -344,7 +344,7 @@ export const roomService = {
     residentData: {
       name: string;
       gender: string;
-      email: string;
+      email?: string;
       phone: string;
       start_date: string;
       end_date: string;

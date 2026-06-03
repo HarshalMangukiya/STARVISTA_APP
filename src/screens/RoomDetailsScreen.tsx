@@ -127,7 +127,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   const [editingResident, setEditingResident] = useState<Resident | null>(null);
   const [resName, setResName] = useState('');
   const [resGender, setResGender] = useState('Male');
-  const [resEmail, setResEmail] = useState('');
   const [resPhone, setResPhone] = useState('');
   const [resStartDate, setResStartDate] = useState('');
   const [resEndDate, setResEndDate] = useState('');
@@ -155,19 +154,19 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         previousResidents.map((resident) =>
           resident.id === residentId
             ? {
-                ...resident,
-                ...updates,
-                room_no: updates.room_no ?? room?.room_no ?? resident.room_no,
-                monthly_rent: updates.monthly_rent ?? room?.monthly_rent ?? resident.monthly_rent,
-                roomNumber: updates.room_no ?? room?.room_no ?? resident.roomNumber,
-                rentAmount: updates.monthly_rent ?? room?.monthly_rent ?? resident.rentAmount,
-                studentName: updates.name ?? resident.studentName ?? resident.name,
-                emailId: updates.email ?? resident.emailId ?? resident.email,
-                mobileNumber: updates.phone ?? resident.mobileNumber ?? resident.phone,
-                startDate: updates.start_date ?? resident.startDate ?? resident.start_date,
-                endDate: updates.end_date ?? resident.endDate ?? resident.end_date,
-                createdAt: resident.createdAt ?? resident.created_at,
-              }
+              ...resident,
+              ...updates,
+              room_no: updates.room_no ?? room?.room_no ?? resident.room_no,
+              monthly_rent: updates.monthly_rent ?? room?.monthly_rent ?? resident.monthly_rent,
+              roomNumber: updates.room_no ?? room?.room_no ?? resident.roomNumber,
+              rentAmount: updates.monthly_rent ?? room?.monthly_rent ?? resident.rentAmount,
+              studentName: updates.name ?? resident.studentName ?? resident.name,
+              emailId: updates.email ?? resident.emailId ?? resident.email,
+              mobileNumber: updates.phone ?? resident.mobileNumber ?? resident.phone,
+              startDate: updates.start_date ?? resident.startDate ?? resident.start_date,
+              endDate: updates.end_date ?? resident.endDate ?? resident.end_date,
+              createdAt: resident.createdAt ?? resident.created_at,
+            }
             : resident
         )
       );
@@ -179,7 +178,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     (residentData: {
       name: string;
       gender: string;
-      email: string;
       phone: string;
       start_date: string;
       end_date: string;
@@ -190,7 +188,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         id: `temp-${Date.now()}`,
         name: residentData.name,
         gender: residentData.gender,
-        email: residentData.email,
+        email: '',
         phone: residentData.phone,
         room_no: room?.room_no || '',
         monthly_rent: room?.monthly_rent || 0,
@@ -200,7 +198,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         propertyId,
         created_at: now,
         studentName: residentData.name,
-        emailId: residentData.email,
+        emailId: '',
         mobileNumber: residentData.phone,
         roomNumber: room?.room_no || '',
         rentAmount: room?.monthly_rent || 0,
@@ -388,12 +386,14 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         {
           start_date: paymentStartDate,
           end_date: paymentEndDate,
+          remarks: '',
         }
       );
       setPaymentModalVisible(false);
       patchResidentLocally(selectedResidentForPayment.id, {
         start_date: paymentStartDate,
         end_date: paymentEndDate,
+        remarks: '',
       });
       Alert.alert('Success', 'Payment dates updated successfully');
     } catch (error) {
@@ -420,7 +420,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     setEditingResident(null);
     setResName('');
     setResGender('Male');
-    setResEmail('');
     setResPhone('');
 
     // Set default dates: check-in is today, check-out is 1 month from now
@@ -439,7 +438,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     setEditingResident(resident);
     setResName(resident.name);
     setResGender(resident.gender || 'Male');
-    setResEmail(resident.email);
     setResPhone(resident.phone);
     // For payment tracking, carry the previous checkout forward as the new check-in.
     // Leave checkout blank so the user can choose the next billing end date manually.
@@ -453,10 +451,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   const handleSaveResident = async () => {
     if (!resName.trim()) {
       Alert.alert('Validation Error', 'Please enter resident name');
-      return;
-    }
-    if (resEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resEmail)) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
       return;
     }
     if (resPhone.trim() && resPhone.replace(/\D/g, '').length < 8) {
@@ -477,7 +471,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       const data = {
         name: resName.trim(),
         gender: resGender,
-        email: resEmail.trim(),
         phone: resPhone.trim(),
         start_date: resStartDate,
         end_date: resEndDate,
@@ -546,7 +539,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     today.setHours(0, 0, 0, 0);
     const diffTime = endDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) return 'pending';
     if (diffDays <= 7) return 'upcoming';
     return 'paid';
@@ -575,7 +568,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
 
     let message = '';
     const roomNo = room?.room_no || 'N/A';
-    
+
     if (status === 'upcoming') {
       message = `Hello ${resident.name},\n\nYour room payment is due soon.\n\nRoom No: ${roomNo}\nDue Date: ${formattedEndDate}\n\nPlease complete your payment on time.\n\nThank you.`;
     } else if (status === 'pending') {
@@ -700,106 +693,104 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                 key={res.id}
                 onSwipeLeft={() => handleOpenPaymentModal(res)}
               >
-                <View style={localStyles.residentCardCompact}>
-                  {/* Header info */}
-                  <View style={localStyles.resCardHeaderCompact}>
-                    <View style={localStyles.avatarSmall}>
-                      <Ionicons name="person" size={14} color="#6366f1" />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                      <Text style={localStyles.resNameTextCompact} numberOfLines={1}>{res.name}</Text>
-                      <Text style={localStyles.resGenderTextCompact}>{res.gender}</Text>
-                    </View>
-                    <View style={localStyles.resHeaderActionsCompact}>
-                      <TouchableOpacity
-                        style={localStyles.resActionCircleCompact}
-                        onPress={() => handleOpenEditResident(res)}
-                      >
-                        <Ionicons name="pencil" size={14} color="#475569" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[localStyles.resActionCircleCompact, { backgroundColor: '#fef2f2' }]}
-                        onPress={() => handleDeleteResident(res.id, res.name)}
-                      >
-                        <Ionicons name="trash" size={14} color="#ef4444" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Details Grid */}
-                  <View style={localStyles.resGridCompact}>
-                    <View style={localStyles.resGridRowCompact}>
-                      <View style={localStyles.resGridColCompact}>
-                        <Ionicons name="call-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
-                        <Text style={localStyles.resDetailValCompact} numberOfLines={1}>{res.phone}</Text>
+                <View style={{ marginBottom: 10 }}>
+                  <View style={localStyles.residentCardCompact}>
+                    {/* Header info */}
+                    <View style={localStyles.resCardHeaderCompact}>
+                      <View style={localStyles.avatarSmall}>
+                        <Ionicons name="person" size={14} color="#6366f1" />
                       </View>
-                      <View style={localStyles.resGridColCompact}>
-                        <Ionicons name="calendar-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
-                        <Text style={localStyles.resDetailValCompact} numberOfLines={1}>
-                          In: {formatDateLabel(res.start_date)}
-                        </Text>
+                      <View style={{ flex: 1, marginLeft: 8 }}>
+                        <Text style={localStyles.resNameTextCompact} numberOfLines={1}>{res.name}</Text>
+                        <Text style={localStyles.resGenderTextCompact}>{res.gender}</Text>
+                      </View>
+                      <View style={localStyles.resHeaderActionsCompact}>
+                        <TouchableOpacity
+                          style={localStyles.resActionCircleCompact}
+                          onPress={() => handleOpenEditResident(res)}
+                        >
+                          <Ionicons name="pencil" size={14} color="#475569" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[localStyles.resActionCircleCompact, { backgroundColor: '#fef2f2' }]}
+                          onPress={() => handleDeleteResident(res.id, res.name)}
+                        >
+                          <Ionicons name="trash" size={14} color="#ef4444" />
+                        </TouchableOpacity>
                       </View>
                     </View>
 
-                    <View style={localStyles.resGridRowCompact}>
-                      <View style={localStyles.resGridColCompact}>
-                        <Ionicons name="mail-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
-                        <Text style={localStyles.resDetailValCompact} numberOfLines={1}>{res.email}</Text>
-                      </View>
-                      <View style={localStyles.resGridColCompact}>
-                        <Ionicons name="calendar-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
-                        <Text style={localStyles.resDetailValCompact} numberOfLines={1}>
-                          Out: {formatDateLabel(res.end_date)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={localStyles.resGridRowCompact}>
-                      <View style={[localStyles.resGridColCompact, { flex: 1.2 }]}>
-                        <Ionicons
-                          name={status.isOverdue ? 'alert-circle-outline' : 'time-outline'}
-                          size={11}
-                          color={status.color}
-                          style={localStyles.resDetailIconCompact}
-                        />
-                        <Text style={[localStyles.resDetailValCompact, { color: status.color, fontWeight: '700' }]} numberOfLines={1}>
-                          {status.text}
-                        </Text>
-                      </View>
-                      {res.remarks ? (
+                    {/* Details Grid */}
+                    <View style={localStyles.resGridCompact}>
+                      <View style={localStyles.resGridRowCompact}>
                         <View style={localStyles.resGridColCompact}>
-                          <Ionicons name="document-text-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
+                          <Ionicons name="call-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
+                          <Text style={localStyles.resDetailValCompact} numberOfLines={1}>{res.phone}</Text>
+                        </View>
+                        <View style={localStyles.resGridColCompact}>
+                          <Ionicons name="calendar-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
                           <Text style={localStyles.resDetailValCompact} numberOfLines={1}>
-                            Note: {res.remarks}
+                            In: {formatDateLabel(res.start_date)}
                           </Text>
                         </View>
-                      ) : null}
+                      </View>
+
+                      <View style={localStyles.resGridRowCompact}>
+                        <View style={[localStyles.resGridColCompact, { flex: 1.2 }]}>
+                          <Ionicons
+                            name={status.isOverdue ? 'alert-circle-outline' : 'time-outline'}
+                            size={11}
+                            color={status.color}
+                            style={localStyles.resDetailIconCompact}
+                          />
+                          <Text style={[localStyles.resDetailValCompact, { color: status.color, fontWeight: '700' }]} numberOfLines={1}>
+                            {status.text}
+                          </Text>
+                        </View>
+                        <View style={localStyles.resGridColCompact}>
+                          <Ionicons name="calendar-outline" size={11} color="#64748b" style={localStyles.resDetailIconCompact} />
+                          <Text style={localStyles.resDetailValCompact} numberOfLines={1}>
+                            Out: {formatDateLabel(res.end_date)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Bottom Quick Contact Row */}
+                    <View style={localStyles.compactContactRow}>
+                      <TouchableOpacity
+                        style={[localStyles.compactContactBtn, { backgroundColor: '#eff6ff' }]}
+                        onPress={() => handleCall(res.phone)}
+                      >
+                        <Ionicons name="call" size={14} color="#2563eb" style={{ marginRight: 6 }} />
+                        <Text style={[localStyles.compactContactBtnText, { color: '#2563eb' }]}>Call</Text>
+                      </TouchableOpacity>
+                      {(() => {
+                        const status = getPaymentStatus(res.end_date);
+                        const isPaid = status === 'paid';
+                        return (
+                          <TouchableOpacity
+                            style={[localStyles.compactContactBtn, { backgroundColor: '#ecfdf5' }]}
+                            onPress={() => handleWhatsAppReminder(res)}
+                          >
+                            <Ionicons name="logo-whatsapp" size={14} color="#059669" style={{ marginRight: 6 }} />
+                            <Text style={[localStyles.compactContactBtnText, { color: '#059669' }]}>WhatsApp</Text>
+                          </TouchableOpacity>
+                        );
+                      })()}
                     </View>
                   </View>
-
-                  {/* Bottom Quick Contact Row */}
-                  <View style={localStyles.compactContactRow}>
+                  {res.remarks ? (
                     <TouchableOpacity
-                      style={[localStyles.compactContactBtn, { backgroundColor: '#eff6ff' }]}
-                      onPress={() => handleCall(res.phone)}
+                      style={localStyles.remarksStackContainer}
+                      onPress={() => handleOpenEditResident(res)}
                     >
-                      <Ionicons name="call" size={14} color="#2563eb" style={{ marginRight: 6 }} />
-                      <Text style={[localStyles.compactContactBtnText, { color: '#2563eb' }]}>Call</Text>
+                      <Ionicons name="document-text-outline" size={12} color="#475569" style={{ marginRight: 6 }} />
+                      <Text style={localStyles.remarksStackText} numberOfLines={1}>
+                        {res.remarks}
+                      </Text>
                     </TouchableOpacity>
-                    {(() => {
-                      const status = getPaymentStatus(res.end_date);
-                      const isPaid = status === 'paid';
-                      return (
-                        <TouchableOpacity
-                          style={[localStyles.compactContactBtn, { backgroundColor: '#ecfdf5' }]}
-                          onPress={() => handleWhatsAppReminder(res)}
-                        >
-                          <Ionicons name="logo-whatsapp" size={14} color="#059669" style={{ marginRight: 6 }} />
-                          <Text style={[localStyles.compactContactBtnText, { color: '#059669' }]}>WhatsApp</Text>
-                        </TouchableOpacity>
-                      );
-                    })()}
-                  </View>
+                  ) : null}
                 </View>
               </SwipeableCard>
             );
@@ -940,18 +931,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                     <Text style={styles.dropdownButtonText}>{resGender}</Text>
                     <Ionicons name="chevron-down" size={20} color="#6366f1" />
                   </TouchableOpacity>
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Email ID</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter email address"
-                    placeholderTextColor="#ccc"
-                    keyboardType="email-address"
-                    value={resEmail}
-                    onChangeText={setResEmail}
-                  />
                 </View>
 
                 <View style={styles.formGroup}>
@@ -1491,7 +1470,6 @@ const localStyles = StyleSheet.create({
     position: 'relative',
     marginBottom: 10,
     borderRadius: 12,
-    overflow: 'hidden',
   },
   swipeUnderlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1512,11 +1490,35 @@ const localStyles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 10,
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 3,
+    zIndex: 2,
+  },
+  remarksStackContainer: {
+    backgroundColor: '#f8fafc',
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 10,
+    marginTop: -12,
+    zIndex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderTopWidth: 0,
+    elevation: 1,
+  },
+  remarksStackText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '500',
+    flex: 1,
   },
   resCardHeaderCompact: {
     flexDirection: 'row',

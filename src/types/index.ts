@@ -21,7 +21,7 @@ export interface Resident {
   id: string;
   name: string;
   gender: string;
-  email: string;
+  email?: string;
   phone: string;
   room_no: string;
   monthly_rent: number;
