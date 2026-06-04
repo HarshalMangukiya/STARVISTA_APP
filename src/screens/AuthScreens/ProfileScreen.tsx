@@ -169,8 +169,8 @@ const ProfileScreen = ({ navigation }: any) => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>STARVISTA • Secure Property Management</Text>
-          <Text style={styles.footerVersion}>Version 1.0.0</Text>
+          <Text style={styles.footerText}>STARVISTA • Payment Management</Text>
+          <Text style={styles.footerVersion}>Version 2.0.0</Text>
         </View>
       </ScrollView>
     </View>

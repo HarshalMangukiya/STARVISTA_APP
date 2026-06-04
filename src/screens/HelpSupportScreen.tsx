@@ -109,8 +109,7 @@ const HelpSupportScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>STARVISTA App v1.0.0</Text>
-          <Text style={styles.copyright}>© 2026 STARVISTA Team</Text>
+          <Text style={styles.footerText}>STARVISTA App v2.0.0</Text>
         </View>
       </ScrollView>
     </View>

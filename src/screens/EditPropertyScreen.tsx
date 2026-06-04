@@ -219,40 +219,19 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
     <View style={styles.container}>
       <View style={[styles.statusBarShield, { height: insets.top, backgroundColor: '#fff' }]} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={insets.top + 60}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: insets.top }}
+          contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
           <View style={[styles.header, { paddingTop: 10 }]}>
             <Text style={styles.headerTitle}>Edit Property</Text>
           </View>
-
-          {/* Diagnostic Button (for debugging) */}
-          <TouchableOpacity
-            style={{
-              marginHorizontal: 16,
-              marginVertical: 10,
-              padding: 12,
-              backgroundColor: '#f0f0f0',
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: '#e0e0e0',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onPress={handleRunDiagnostics}
-          >
-            <Ionicons name="settings" size={16} color="#666" style={{ marginRight: 6 }} />
-            <Text style={{ textAlign: 'center', fontSize: 13, fontWeight: '600', color: '#666' }}>
-              Run Network Diagnostics
-            </Text>
-          </TouchableOpacity>
 
           {/* Property Name Input */}
           <View style={styles.section}>
@@ -345,7 +324,6 @@ const EditPropertyScreen = ({ route, navigation }: any) => {
             </TouchableOpacity>
           </View>
 
-          <View style={{ height: 20 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

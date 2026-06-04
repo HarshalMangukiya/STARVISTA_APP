@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   Dimensions,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
@@ -206,6 +208,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   scrollContent: {
     flexGrow: 1,

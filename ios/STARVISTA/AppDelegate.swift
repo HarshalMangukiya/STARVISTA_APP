@@ -15,6 +15,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Disable the "Connect to Metro to develop JavaScript" dev loading banner
+    #if DEBUG
+    RCTDevLoadingViewSetEnabled(false)
+    #endif
+
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -49,3 +54,4 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
 #endif
   }
 }
+

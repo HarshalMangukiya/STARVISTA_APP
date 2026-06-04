@@ -32,25 +32,33 @@ const DashboardScreen = ({ navigation }: any) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const propertiesRef = useRef<Property[]>([]);
+  useEffect(() => {
+    propertiesRef.current = properties;
+  }, [properties]);
+
   // Fetch properties when screen is focused
   useFocusEffect(
     React.useCallback(() => {
-      loadProperties();
+      const showLoader = propertiesRef.current.length === 0;
+      loadProperties(showLoader);
     }, [])
   );
 
-  const loadProperties = async () => {
-    setIsLoading(true);
+  const loadProperties = async (showLoader = true) => {
+    if (showLoader) setIsLoading(true);
     setError(null);
     try {
       const data = await fetchUserProperties();
       setProperties(data);
     } catch (err) {
       console.error('Error loading properties:', err);
-      setError('Failed to load properties');
+      if (propertiesRef.current.length === 0) {
+        setError('Failed to load properties');
+      }
       Alert.alert('Error', 'Failed to load properties. Please try again.');
     } finally {
-      setIsLoading(false);
+      if (showLoader) setIsLoading(false);
     }
   };
 

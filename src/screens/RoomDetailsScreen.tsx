@@ -16,6 +16,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  InteractionManager,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -30,63 +31,91 @@ interface SwipeableCardProps {
   onSwipeLeft: () => void;
 }
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SWIPE_LIMIT = -SCREEN_WIDTH * 0.5;
+const SWIPE_THRESHOLD = -SCREEN_WIDTH * 0.25;
+
 const SwipeableCard: React.FC<SwipeableCardProps> = ({ children, onSwipeLeft }) => {
-  const pan = React.useRef(new Animated.ValueXY()).current;
-  const [isActionTriggered, setIsActionTriggered] = React.useState(false);
+  const pan = React.useRef(new Animated.Value(0)).current;
+  const isActionTriggeredRef = React.useRef(false);
 
-  const panResponder = React.useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && gestureState.dx < -10;
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        if (gestureState.dx < 0 && !isActionTriggered) {
-          pan.setValue({ x: Math.max(gestureState.dx, -120), y: 0 });
-        }
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        if (gestureState.dx < -100 && !isActionTriggered) {
-          setIsActionTriggered(true);
-          onSwipeLeft();
-          // Reset after action is triggered
-          setTimeout(() => {
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_evt, gestureState) => {
+          // Only capture horizontal left swipes that are clearly intentional
+          return (
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 1.5) &&
+            Math.abs(gestureState.dx) > 10 &&
+            gestureState.dx < 0
+          );
+        },
+        onMoveShouldSetPanResponderCapture: () => false,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          // Reset to current value on new gesture start
+          pan.setOffset(0);
+          pan.setValue(0);
+        },
+        onPanResponderMove: (_evt, gestureState) => {
+          if (gestureState.dx < 0 && !isActionTriggeredRef.current) {
+            pan.setValue(Math.max(gestureState.dx, SWIPE_LIMIT));
+          }
+        },
+        onPanResponderRelease: (_evt, gestureState) => {
+          pan.flattenOffset();
+          if (gestureState.dx < SWIPE_THRESHOLD && !isActionTriggeredRef.current) {
+            isActionTriggeredRef.current = true;
+            onSwipeLeft();
+            // Reset after action is triggered
+            setTimeout(() => {
+              Animated.spring(pan, {
+                toValue: 0,
+                useNativeDriver: true,
+                tension: 40,
+                friction: 6,
+              }).start(() => {
+                isActionTriggeredRef.current = false;
+              });
+            }, 300);
+          } else {
             Animated.spring(pan, {
-              toValue: { x: 0, y: 0 },
+              toValue: 0,
               useNativeDriver: true,
-            }).start(() => {
-              setIsActionTriggered(false);
-            });
-          }, 200);
-        } else {
+              tension: 40,
+              friction: 6,
+            }).start();
+          }
+        },
+        onPanResponderTerminate: () => {
+          // If gesture is terminated (e.g. by scroll view), snap back
           Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
+            toValue: 0,
             useNativeDriver: true,
+            tension: 40,
+            friction: 6,
           }).start();
-        }
-      },
-    })
-  ).current;
+        },
+      }),
+    [onSwipeLeft, pan]
+  );
 
-  React.useEffect(() => {
-    // Reset card position if it was swiped but modal closed
-    if (!isActionTriggered) {
-      Animated.spring(pan, {
-        toValue: { x: 0, y: 0 },
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isActionTriggered]);
+  const underlayOpacity = pan.interpolate({
+    inputRange: [SWIPE_THRESHOLD, 0],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={localStyles.swipeContainer}>
-      <View style={localStyles.swipeUnderlay}>
+      <Animated.View style={[localStyles.swipeUnderlay, { opacity: underlayOpacity }]}>
         <Ionicons name="card" size={18} color="#fff" />
         <Text style={localStyles.swipeUnderlayText}>Update Payment</Text>
-      </View>
+      </Animated.View>
       <Animated.View
         style={{
-          transform: [{ translateX: pan.x }],
+          transform: [{ translateX: pan }],
         }}
         {...panResponder.panHandlers}
       >
@@ -147,6 +176,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   const [showPaymentStartDatePicker, setShowPaymentStartDatePicker] = useState(false);
   const [showPaymentEndDatePicker, setShowPaymentEndDatePicker] = useState(false);
   const [quickSelectOption, setQuickSelectOption] = useState<'1' | '3' | '6' | 'custom' | null>(null);
+  const [paymentRemarks, setPaymentRemarks] = useState('');
 
   const patchResidentLocally = useCallback(
     (residentId: string, updates: Partial<Resident>) => {
@@ -269,7 +299,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   }, [propertyId, roomId, navigation, route.params]);
 
   useEffect(() => {
-    loadData();
+    const task = InteractionManager.runAfterInteractions(() => {
+      loadData();
+    });
+    return () => task.cancel();
   }, [loadData]);
 
   // Handle Room Updates
@@ -296,7 +329,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       });
       setRoomModalVisible(false);
       loadData(true);
-      Alert.alert('Success', 'Room details updated successfully');
+
     } catch (error) {
       console.error('Error updating room:', error);
       Alert.alert('Error', 'Failed to update room details');
@@ -327,7 +360,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
             setActionLoading(true);
             try {
               await roomService.deleteRoom(propertyId, roomId);
-              Alert.alert('Success', 'Room deleted successfully');
               navigation.goBack();
             } catch (error) {
               console.error('Error deleting room:', error);
@@ -347,6 +379,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     setPaymentStartDate(resident.end_date || resident.start_date);
     setPaymentEndDate('');
     setQuickSelectOption(null);
+    setPaymentRemarks('');
     setPaymentModalVisible(true);
   };
 
@@ -368,11 +401,25 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   // Save updated payment dates
   const handleUpdatePayment = async () => {
     if (!selectedResidentForPayment) return;
-    if (!paymentStartDate) {
+
+    const isDateUpdated = paymentEndDate !== '';
+    const isRemarkUpdated = paymentRemarks.trim() !== '';
+
+    // If nothing changed, just close the modal
+    if (!isDateUpdated && !isRemarkUpdated) {
+      setPaymentModalVisible(false);
+      return;
+    }
+
+    const finalStartDate = isDateUpdated ? paymentStartDate : selectedResidentForPayment.start_date;
+    const finalEndDate = isDateUpdated ? paymentEndDate : selectedResidentForPayment.end_date;
+    const finalRemarks = isRemarkUpdated ? paymentRemarks.trim() : (isDateUpdated ? '' : selectedResidentForPayment.remarks || '');
+
+    if (!finalStartDate) {
       Alert.alert('Validation Error', 'Please select start date');
       return;
     }
-    if (!paymentEndDate) {
+    if (!finalEndDate) {
       Alert.alert('Validation Error', 'Please select end date');
       return;
     }
@@ -384,21 +431,21 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         roomId,
         selectedResidentForPayment.id,
         {
-          start_date: paymentStartDate,
-          end_date: paymentEndDate,
-          remarks: '',
+          start_date: finalStartDate,
+          end_date: finalEndDate,
+          remarks: finalRemarks,
         }
       );
       setPaymentModalVisible(false);
       patchResidentLocally(selectedResidentForPayment.id, {
-        start_date: paymentStartDate,
-        end_date: paymentEndDate,
-        remarks: '',
+        start_date: finalStartDate,
+        end_date: finalEndDate,
+        remarks: finalRemarks,
       });
-      Alert.alert('Success', 'Payment dates updated successfully');
+
     } catch (error) {
-      console.error('Error updating payment dates:', error);
-      Alert.alert('Error', 'Failed to update payment dates');
+      console.error('Error updating resident details:', error);
+      Alert.alert('Error', 'Failed to update resident details');
     } finally {
       setActionLoading(false);
     }
@@ -441,8 +488,8 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     setResPhone(resident.phone);
     // For payment tracking, carry the previous checkout forward as the new check-in.
     // Leave checkout blank so the user can choose the next billing end date manually.
-    setResStartDate(resident.end_date || resident.start_date);
-    setResEndDate('');
+    setResStartDate(resident.start_date);
+    setResEndDate(resident.end_date || '');
     setResRemarks(resident.remarks || '');
     setResidentModalVisible(true);
   };
@@ -480,11 +527,11 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       if (editingResident) {
         await roomService.updateResidentInRoom(propertyId, roomId, editingResident.id, data);
         patchResidentLocally(editingResident.id, data);
-        Alert.alert('Success', 'Resident details updated successfully');
+
       } else {
         await roomService.addResidentToRoom(propertyId, roomId, data);
         addResidentLocally(data);
-        Alert.alert('Success', 'Resident onboarded successfully');
+
       }
       setResidentModalVisible(false);
     } catch (error) {
@@ -510,7 +557,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
             try {
               await roomService.deleteResidentFromRoom(propertyId, roomId, residentId);
               removeResidentLocally(residentId);
-              Alert.alert('Success', 'Resident removed successfully');
+
             } catch (error) {
               console.error('Error deleting resident:', error);
               Alert.alert('Error', 'Failed to remove resident');
@@ -693,7 +740,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                 key={res.id}
                 onSwipeLeft={() => handleOpenPaymentModal(res)}
               >
-                <View style={{ marginBottom: 10 }}>
+                <View style={{ marginBottom: 0 }}>
                   <View style={localStyles.residentCardCompact}>
                     {/* Header info */}
                     <View style={localStyles.resCardHeaderCompact}>
@@ -781,15 +828,12 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                     </View>
                   </View>
                   {res.remarks ? (
-                    <TouchableOpacity
-                      style={localStyles.remarksStackContainer}
-                      onPress={() => handleOpenEditResident(res)}
-                    >
+                    <View style={localStyles.remarksStackContainer}>
                       <Ionicons name="document-text-outline" size={12} color="#475569" style={{ marginRight: 6 }} />
                       <Text style={localStyles.remarksStackText} numberOfLines={1}>
                         {res.remarks}
                       </Text>
-                    </TouchableOpacity>
+                    </View>
                   ) : null}
                 </View>
               </SwipeableCard>
@@ -1159,6 +1203,20 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                 </View>
               </View>
 
+              {/* Remarks (Optional) */}
+              <View style={{ marginBottom: 20 }}>
+                <Text style={localStyles.paymentSectionLabel}>Remarks (Optional)</Text>
+                <TextInput
+                  style={localStyles.paymentRemarksInput}
+                  placeholder="Add notes, pending items, etc."
+                  placeholderTextColor="#64748b"
+                  value={paymentRemarks}
+                  onChangeText={setPaymentRemarks}
+                  multiline
+                  numberOfLines={2}
+                />
+              </View>
+
               {/* Bottom Buttons */}
               <View style={localStyles.paymentActionsRow}>
                 <TouchableOpacity
@@ -1470,6 +1528,7 @@ const localStyles = StyleSheet.create({
     position: 'relative',
     marginBottom: 10,
     borderRadius: 12,
+    overflow: 'hidden',
   },
   swipeUnderlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1734,6 +1793,19 @@ const localStyles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  paymentRemarksInput: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    fontSize: 14,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    marginBottom: 4,
   },
 });
 
