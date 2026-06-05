@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ActivityIndicator,
   Alert,
   Linking,
@@ -17,6 +18,7 @@ import {
   PanResponder,
   Dimensions,
   InteractionManager,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -125,6 +127,78 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ children, onSwipeLeft }) 
   );
 };
 
+interface PopupDatePickerProps {
+  visible: boolean;
+  value: Date;
+  title: string;
+  onClose: () => void;
+  onChange: (date: Date) => void;
+}
+
+const PopupDatePicker: React.FC<PopupDatePickerProps> = ({
+  visible,
+  value,
+  title,
+  onClose,
+  onChange,
+}) => {
+  const [tempDate, setTempDate] = React.useState<Date>(() => {
+    return value instanceof Date && !isNaN(value.getTime()) ? value : new Date();
+  });
+
+  React.useEffect(() => {
+    if (visible) {
+      setTempDate(value instanceof Date && !isNaN(value.getTime()) ? value : new Date());
+    }
+  }, [visible, value]);
+
+  if (!visible) return null;
+
+  return (
+    <TouchableOpacity
+      style={localStyles.popupOverlay}
+      activeOpacity={1}
+      onPress={onClose}
+    >
+      <TouchableWithoutFeedback onPress={() => {}}>
+        <View style={localStyles.popupCard}>
+          <Text style={localStyles.popupTitle}>{title}</Text>
+          
+          <View style={localStyles.popupPickerContainer}>
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="inline"
+              textColor="#000"
+              themeVariant="light"
+              onChange={(event, date) => {
+                if (date) {
+                  setTempDate(date);
+                }
+              }}
+            />
+          </View>
+
+          <View style={localStyles.popupActions}>
+            <TouchableOpacity style={localStyles.popupBtn} onPress={onClose}>
+              <Text style={localStyles.popupBtnTextCancel}>CANCEL</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={localStyles.popupBtn}
+              onPress={() => {
+                onChange(tempDate);
+                onClose();
+              }}
+            >
+              <Text style={localStyles.popupBtnTextOk}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    </TouchableOpacity>
+  );
+};
+
 interface RoomDetailsScreenProps {
   route: any;
   navigation: any;
@@ -205,7 +279,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
   );
 
   const addResidentLocally = useCallback(
-    (residentData: {
+    (id: string, residentData: {
       name: string;
       gender: string;
       phone: string;
@@ -215,7 +289,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     }) => {
       const now = Timestamp.now();
       const optimisticResident: Resident = {
-        id: `temp-${Date.now()}`,
+        id: id,
         name: residentData.name,
         gender: residentData.gender,
         email: '',
@@ -403,7 +477,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
     if (!selectedResidentForPayment) return;
 
     const isDateUpdated = paymentEndDate !== '';
-    const isRemarkUpdated = paymentRemarks.trim() !== '';
+    const isRemarkUpdated = paymentRemarks !== (selectedResidentForPayment.remarks || '');
 
     // If nothing changed, just close the modal
     if (!isDateUpdated && !isRemarkUpdated) {
@@ -413,7 +487,9 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
 
     const finalStartDate = isDateUpdated ? paymentStartDate : selectedResidentForPayment.start_date;
     const finalEndDate = isDateUpdated ? paymentEndDate : selectedResidentForPayment.end_date;
-    const finalRemarks = isRemarkUpdated ? paymentRemarks.trim() : (isDateUpdated ? '' : selectedResidentForPayment.remarks || '');
+    const finalRemarks = isRemarkUpdated 
+      ? paymentRemarks.trim() 
+      : (isDateUpdated ? '' : selectedResidentForPayment.remarks || '');
 
     if (!finalStartDate) {
       Alert.alert('Validation Error', 'Please select start date');
@@ -529,8 +605,8 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         patchResidentLocally(editingResident.id, data);
 
       } else {
-        await roomService.addResidentToRoom(propertyId, roomId, data);
-        addResidentLocally(data);
+        const newResidentId = await roomService.addResidentToRoom(propertyId, roomId, data);
+        addResidentLocally(newResidentId, data);
 
       }
       setResidentModalVisible(false);
@@ -862,6 +938,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
             <TouchableOpacity
               activeOpacity={1}
               style={[styles.modalContent, { padding: 20, maxHeight: 500 }]}
+              onPress={Keyboard.dismiss}
             >
               <View style={localStyles.modalHeader}>
                 <Text style={styles.sectionTitle}>Edit Room Details</Text>
@@ -944,6 +1021,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
             <TouchableOpacity
               activeOpacity={1}
               style={[styles.modalContent, { padding: 20, maxHeight: 650 }]}
+              onPress={Keyboard.dismiss}
             >
               <View style={localStyles.modalHeader}>
                 <Text style={styles.sectionTitle}>
@@ -1020,39 +1098,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                   </View>
                 </View>
 
-                {Platform.OS === 'ios' && showStartDatePicker && (
-                  <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
-                      Select Check-in Date
-                    </Text>
-                    <DateTimePicker
-                      value={resStartDate ? new Date(resStartDate) : new Date()}
-                      mode="date"
-                      display="spinner"
-                      textColor="#000"
-                      onChange={(event, date) => {
-                        if (date) setResStartDate(date.toISOString().split('T')[0]);
-                      }}
-                    />
-                  </View>
-                )}
-
-                {Platform.OS === 'ios' && showEndDatePicker && (
-                  <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
-                      Select Check-out Date
-                    </Text>
-                    <DateTimePicker
-                      value={resEndDate ? new Date(resEndDate) : new Date()}
-                      mode="date"
-                      display="spinner"
-                      textColor="#000"
-                      onChange={(event, date) => {
-                        if (date) setResEndDate(date.toISOString().split('T')[0]);
-                      }}
-                    />
-                  </View>
-                )}
 
                 <View style={[styles.formGroup, { marginTop: 16 }]}>
                   <Text style={styles.label}>Remarks (Optional)</Text>
@@ -1090,6 +1135,30 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
               </ScrollView>
             </TouchableOpacity>
           </KeyboardAvoidingView>
+
+          {Platform.OS === 'ios' && (
+            <PopupDatePicker
+              visible={showStartDatePicker}
+              value={resStartDate ? new Date(resStartDate) : new Date()}
+              title="Select Check-in Date"
+              onClose={() => setShowStartDatePicker(false)}
+              onChange={(date) => {
+                setResStartDate(date.toISOString().split('T')[0]);
+              }}
+            />
+          )}
+
+          {Platform.OS === 'ios' && (
+            <PopupDatePicker
+              visible={showEndDatePicker}
+              value={resEndDate ? new Date(resEndDate) : new Date()}
+              title="Select Check-out Date"
+              onClose={() => setShowEndDatePicker(false)}
+              onChange={(date) => {
+                setResEndDate(date.toISOString().split('T')[0]);
+              }}
+            />
+          )}
         </TouchableOpacity>
       </Modal>
 
@@ -1164,6 +1233,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
             <TouchableOpacity
               activeOpacity={1}
               style={localStyles.paymentModalContent}
+              onPress={Keyboard.dismiss}
             >
               {/* Header */}
               <View style={localStyles.paymentHeader}>
@@ -1271,45 +1341,6 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                 </View>
               </View>
 
-              {Platform.OS === 'ios' && showPaymentStartDatePicker && (
-                <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8, marginBottom: 16 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
-                    Select Payment Start Date
-                  </Text>
-                  <DateTimePicker
-                    value={paymentStartDate ? new Date(paymentStartDate) : new Date()}
-                    mode="date"
-                    display="spinner"
-                    textColor="#000"
-                    onChange={(event, date) => {
-                      if (date) {
-                        setPaymentStartDate(date.toISOString().split('T')[0]);
-                        setQuickSelectOption('custom');
-                      }
-                    }}
-                  />
-                </View>
-              )}
-
-              {Platform.OS === 'ios' && showPaymentEndDatePicker && (
-                <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8, marginBottom: 16 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
-                    Select Payment End Date
-                  </Text>
-                  <DateTimePicker
-                    value={paymentEndDate ? new Date(paymentEndDate) : new Date()}
-                    mode="date"
-                    display="spinner"
-                    textColor="#000"
-                    onChange={(event, date) => {
-                      if (date) {
-                        setPaymentEndDate(date.toISOString().split('T')[0]);
-                        setQuickSelectOption('custom');
-                      }
-                    }}
-                  />
-                </View>
-              )}
 
               {/* Remarks (Optional) */}
               <View style={{ marginBottom: 20 }}>
@@ -1348,6 +1379,32 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
 
             </TouchableOpacity>
           </KeyboardAvoidingView>
+
+          {Platform.OS === 'ios' && (
+            <PopupDatePicker
+              visible={showPaymentStartDatePicker}
+              value={paymentStartDate ? new Date(paymentStartDate) : new Date()}
+              title="Select Payment Start Date"
+              onClose={() => setShowPaymentStartDatePicker(false)}
+              onChange={(date) => {
+                setPaymentStartDate(date.toISOString().split('T')[0]);
+                setQuickSelectOption('custom');
+              }}
+            />
+          )}
+
+          {Platform.OS === 'ios' && (
+            <PopupDatePicker
+              visible={showPaymentEndDatePicker}
+              value={paymentEndDate ? new Date(paymentEndDate) : new Date()}
+              title="Select Payment End Date"
+              onClose={() => setShowPaymentEndDatePicker(false)}
+              onChange={(date) => {
+                setPaymentEndDate(date.toISOString().split('T')[0]);
+                setQuickSelectOption('custom');
+              }}
+            />
+          )}
         </TouchableOpacity>
       </Modal>
 
@@ -1918,6 +1975,59 @@ const localStyles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
     marginBottom: 4,
+  },
+  popupOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  popupCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  popupTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  popupPickerContainer: {
+    marginVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popupActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 20,
+    marginTop: 15,
+  },
+  popupBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  popupBtnTextCancel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: 0.5,
+  },
+  popupBtnTextOk: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563eb',
+    letterSpacing: 0.5,
   },
 });
 

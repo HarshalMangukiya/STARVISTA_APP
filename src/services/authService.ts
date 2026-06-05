@@ -56,17 +56,9 @@ class AuthService {
           createdAt: new Date().toISOString(),
         });
       } catch (firestoreError: any) {
-        // Rollback: delete the user from Authentication so they can try again once DB rules are fixed!
-        try {
-          await firebaseUser.delete();
-        } catch (deleteError) {
-          console.error('Failed to rollback user:', deleteError);
-        }
-
-        if (firestoreError?.code === 'permission-denied' || firestoreError?.message?.includes('permission')) {
-          throw new Error('A database error occurred (Permission Denied). Make sure your Firebase Rules are updated!');
-        }
-        throw firestoreError;
+        console.warn('[AuthService] Firestore user doc creation failed on signup:', firestoreError?.message || firestoreError);
+        // Do NOT rollback/delete the user. The user is still successfully created in Firebase Auth.
+        // We will try to create the missing document during their first login anyway.
       }
 
       console.log('[AuthService] User created in Firebase and Firestore');
@@ -75,6 +67,15 @@ class AuthService {
         email,
         role: 'Verified Property Owner',
       };
+
+      // Store in AsyncStorage for fast boots / session persistence
+      try {
+        await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        await AsyncStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, 'true');
+        console.log('[AuthService] User data saved to AsyncStorage on signup');
+      } catch (storageError) {
+        console.warn('[AuthService] Failed to save to AsyncStorage on signup:', storageError);
+      }
 
       console.log('[AuthService] ===== SIGNUP SUCCESSFUL =====');
       return user;

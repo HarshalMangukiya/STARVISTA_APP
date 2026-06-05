@@ -86,29 +86,8 @@ const SignupScreen = ({ navigation: navigationProp }: any) => {
     setIsLoading(true);
 
     try {
-      // Call signup from context
+      // Call signup from context (will automatically update isSignedIn and log user in)
       await signup(email, password);
-
-      // Show success alert and navigate
-      Alert.alert(
-        'Success!',
-        'Your account has been created successfully.\nYou can now login with your email and password.',
-        [
-          {
-            text: 'Go to Login',
-            onPress: () => {
-              // Clear form before navigating
-              setEmail('');
-              setPassword('');
-              setConfirmPassword('');
-              navigation.navigate('Login' as never);
-            },
-            style: 'default'
-          },
-        ],
-        { cancelable: false }
-      );
-
     } catch (err: any) {
       console.error('Signup failed:', err);
       // The error is already set in AuthContext by the signup function,

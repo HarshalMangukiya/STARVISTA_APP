@@ -83,8 +83,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const newUser = await authService.signup(email, password);
       console.log('AuthContext: Signup successful, user:', newUser.email);
       setUser(newUser);
-      // Don't automatically sign in after signup - user must log in
-      setIsSignedIn(false);
+      setIsSignedIn(true);
     } catch (err: any) {
       const errorMessage = err?.message || 'Signup failed. Please try again.';
       console.error('AuthContext signup error:', errorMessage);

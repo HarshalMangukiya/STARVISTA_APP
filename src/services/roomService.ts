@@ -361,7 +361,7 @@ export const roomService = {
       const docRef = await addDoc(residentsRef, {
         name: residentData.name,
         gender: residentData.gender,
-        email: residentData.email,
+        email: residentData.email || '',
         phone: residentData.phone,
         start_date: toTimestamp(residentData.start_date),
         end_date: toTimestamp(residentData.end_date),
