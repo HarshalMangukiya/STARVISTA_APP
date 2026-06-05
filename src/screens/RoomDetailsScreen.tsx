@@ -992,17 +992,67 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                 <View style={styles.dateRow}>
                   <View style={styles.dateField}>
                     <Text style={styles.label}>Check-in Date *</Text>
-                    <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartDatePicker(true)}>
-                      <Text style={styles.dateButtonText}>{resStartDate ? formatDateLabel(resStartDate) : 'Select check-in'}</Text>
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => {
+                        setShowStartDatePicker(!showStartDatePicker);
+                        setShowEndDatePicker(false);
+                      }}
+                    >
+                      <Text style={styles.dateButtonText}>
+                        {resStartDate ? formatDateLabel(resStartDate) : 'Select check-in'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                   <View style={styles.dateField}>
                     <Text style={styles.label}>Check-out Date *</Text>
-                    <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
-                      <Text style={styles.dateButtonText}>{resEndDate ? formatDateLabel(resEndDate) : 'Select check-out'}</Text>
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => {
+                        setShowEndDatePicker(!showEndDatePicker);
+                        setShowStartDatePicker(false);
+                      }}
+                    >
+                      <Text style={styles.dateButtonText}>
+                        {resEndDate ? formatDateLabel(resEndDate) : 'Select check-out'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
+
+                {Platform.OS === 'ios' && showStartDatePicker && (
+                  <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
+                      Select Check-in Date
+                    </Text>
+                    <DateTimePicker
+                      value={resStartDate ? new Date(resStartDate) : new Date()}
+                      mode="date"
+                      display="spinner"
+                      textColor="#000"
+                      onChange={(event, date) => {
+                        if (date) setResStartDate(date.toISOString().split('T')[0]);
+                      }}
+                    />
+                  </View>
+                )}
+
+                {Platform.OS === 'ios' && showEndDatePicker && (
+                  <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
+                      Select Check-out Date
+                    </Text>
+                    <DateTimePicker
+                      value={resEndDate ? new Date(resEndDate) : new Date()}
+                      mode="date"
+                      display="spinner"
+                      textColor="#000"
+                      onChange={(event, date) => {
+                        if (date) setResEndDate(date.toISOString().split('T')[0]);
+                      }}
+                    />
+                  </View>
+                )}
 
                 <View style={[styles.formGroup, { marginTop: 16 }]}>
                   <Text style={styles.label}>Remarks (Optional)</Text>
@@ -1044,7 +1094,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       </Modal>
 
       {/* Date Pickers (Android & iOS) */}
-      {showStartDatePicker && (
+      {Platform.OS === 'android' && showStartDatePicker && (
         <DateTimePicker
           value={resStartDate ? new Date(resStartDate) : new Date()}
           mode="date"
@@ -1056,7 +1106,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         />
       )}
 
-      {showEndDatePicker && (
+      {Platform.OS === 'android' && showEndDatePicker && (
         <DateTimePicker
           value={resEndDate ? new Date(resEndDate) : new Date()}
           mode="date"
@@ -1119,7 +1169,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
               <View style={localStyles.paymentHeader}>
                 <Text style={localStyles.paymentHeaderTitle}>Update Payment</Text>
                 <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
-                  <Ionicons name="close" size={22} color="#fff" />
+                  <Ionicons name="close" size={22} color="#64748b" />
                 </TouchableOpacity>
               </View>
 
@@ -1140,7 +1190,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                     ]}
                     onPress={() => handleQuickSelect(1)}
                   >
-                    <Text style={localStyles.quickSelectText}>1 Month</Text>
+                    <Text style={[
+                      localStyles.quickSelectText,
+                      quickSelectOption === '1' && localStyles.quickSelectTextActive,
+                    ]}>1 Month</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
@@ -1149,7 +1202,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                     ]}
                     onPress={() => handleQuickSelect(3)}
                   >
-                    <Text style={localStyles.quickSelectText}>3 Months</Text>
+                    <Text style={[
+                      localStyles.quickSelectText,
+                      quickSelectOption === '3' && localStyles.quickSelectTextActive,
+                    ]}>3 Months</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
@@ -1158,7 +1214,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                     ]}
                     onPress={() => handleQuickSelect(6)}
                   >
-                    <Text style={localStyles.quickSelectText}>6 Months</Text>
+                    <Text style={[
+                      localStyles.quickSelectText,
+                      quickSelectOption === '6' && localStyles.quickSelectTextActive,
+                    ]}>6 Months</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
@@ -1167,7 +1226,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                     ]}
                     onPress={() => handleQuickSelect(-1)}
                   >
-                    <Text style={localStyles.quickSelectText}>Custom</Text>
+                    <Text style={[
+                      localStyles.quickSelectText,
+                      quickSelectOption === 'custom' && localStyles.quickSelectTextActive,
+                    ]}>Custom</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1180,7 +1242,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                   <Text style={localStyles.paymentInputLabel}>Start Date</Text>
                   <TouchableOpacity
                     style={localStyles.paymentDateInputBtn}
-                    onPress={() => setShowPaymentStartDatePicker(true)}
+                    onPress={() => {
+                      setShowPaymentStartDatePicker(!showPaymentStartDatePicker);
+                      setShowPaymentEndDatePicker(false);
+                    }}
                   >
                     <Text style={localStyles.paymentDateInputText}>
                       {displayDateFormat(paymentStartDate)}
@@ -1193,7 +1258,10 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                   <Text style={localStyles.paymentInputLabel}>End Date</Text>
                   <TouchableOpacity
                     style={localStyles.paymentDateInputBtn}
-                    onPress={() => setShowPaymentEndDatePicker(true)}
+                    onPress={() => {
+                      setShowPaymentEndDatePicker(!showPaymentEndDatePicker);
+                      setShowPaymentStartDatePicker(false);
+                    }}
                   >
                     <Text style={localStyles.paymentDateInputText}>
                       {displayDateFormat(paymentEndDate)}
@@ -1202,6 +1270,46 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {Platform.OS === 'ios' && showPaymentStartDatePicker && (
+                <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
+                    Select Payment Start Date
+                  </Text>
+                  <DateTimePicker
+                    value={paymentStartDate ? new Date(paymentStartDate) : new Date()}
+                    mode="date"
+                    display="spinner"
+                    textColor="#000"
+                    onChange={(event, date) => {
+                      if (date) {
+                        setPaymentStartDate(date.toISOString().split('T')[0]);
+                        setQuickSelectOption('custom');
+                      }
+                    }}
+                  />
+                </View>
+              )}
+
+              {Platform.OS === 'ios' && showPaymentEndDatePicker && (
+                <View style={{ marginTop: 8, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 8, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366f1', textAlign: 'center', marginBottom: 4 }}>
+                    Select Payment End Date
+                  </Text>
+                  <DateTimePicker
+                    value={paymentEndDate ? new Date(paymentEndDate) : new Date()}
+                    mode="date"
+                    display="spinner"
+                    textColor="#000"
+                    onChange={(event, date) => {
+                      if (date) {
+                        setPaymentEndDate(date.toISOString().split('T')[0]);
+                        setQuickSelectOption('custom');
+                      }
+                    }}
+                  />
+                </View>
+              )}
 
               {/* Remarks (Optional) */}
               <View style={{ marginBottom: 20 }}>
@@ -1244,7 +1352,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
       </Modal>
 
       {/* Payment Date Pickers */}
-      {showPaymentStartDatePicker && (
+      {Platform.OS === 'android' && showPaymentStartDatePicker && (
         <DateTimePicker
           value={paymentStartDate ? new Date(paymentStartDate) : new Date()}
           mode="date"
@@ -1259,7 +1367,7 @@ const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({ route, navigation
         />
       )}
 
-      {showPaymentEndDatePicker && (
+      {Platform.OS === 'android' && showPaymentEndDatePicker && (
         <DateTimePicker
           value={paymentEndDate ? new Date(paymentEndDate) : new Date()}
           mode="date"
@@ -1658,11 +1766,11 @@ const localStyles = StyleSheet.create({
   },
   paymentModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   paymentModalContent: {
-    backgroundColor: '#121824',
+    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
@@ -1677,7 +1785,7 @@ const localStyles = StyleSheet.create({
   paymentHeaderTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#fff',
+    color: '#1e293b',
   },
   paymentResidentRow: {
     flexDirection: 'row',
@@ -1685,19 +1793,19 @@ const localStyles = StyleSheet.create({
   },
   paymentResidentLabel: {
     fontSize: 15,
-    color: '#94a3b8',
+    color: '#64748b',
   },
   paymentResidentName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
+    color: '#1e293b',
   },
   quickSelectSection: {
     marginBottom: 24,
   },
   paymentSectionLabel: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#64748b',
     marginBottom: 10,
     fontWeight: '600',
   },
@@ -1712,23 +1820,26 @@ const localStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1e293b',
-    backgroundColor: '#1e293b',
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickSelectBtnActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#1e3a8a',
+    borderColor: '#6366f1',
+    backgroundColor: '#6366f1',
   },
   quickSelectText: {
-    color: '#fff',
+    color: '#475569',
     fontSize: 13,
     fontWeight: '600',
   },
+  quickSelectTextActive: {
+    color: '#fff',
+  },
   manualSelectLabel: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#64748b',
     marginBottom: 12,
     fontWeight: '500',
   },
@@ -1742,7 +1853,7 @@ const localStyles = StyleSheet.create({
   },
   paymentInputLabel: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#64748b',
     marginBottom: 6,
     fontWeight: '600',
   },
@@ -1750,15 +1861,15 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderWidth: 1,
-    borderColor: '#1e293b',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
   paymentDateInputText: {
-    color: '#fff',
+    color: '#1e293b',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -1771,18 +1882,19 @@ const localStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1e293b',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
   },
   paymentCancelText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
     fontWeight: '600',
   },
   paymentUpdateBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#6366f1',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -1795,13 +1907,13 @@ const localStyles = StyleSheet.create({
     fontWeight: '700',
   },
   paymentRemarksInput: {
-    backgroundColor: '#1e293b',
-    borderWidth: 1,
-    borderColor: '#1e293b',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#fff',
+    color: '#1e293b',
     fontSize: 14,
     minHeight: 60,
     textAlignVertical: 'top',
