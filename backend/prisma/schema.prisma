@@ -1,0 +1,200 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  HOSTEL_ADMIN
+  WARDEN
+  STAFF
+  STUDENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PaymentStatus {
+  PAID
+  UPCOMING
+  PENDING
+}
+
+enum Platform {
+  ANDROID
+  IOS
+  WEB
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password_hash String
+  first_name    String?
+  last_name     String?
+  phone         String?
+  role          Role           @default(HOSTEL_ADMIN)
+  is_active     Boolean        @default(true)
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+
+  properties    Property[]
+  staff_roles   HostelStaff[]
+  refresh_tokens RefreshToken[]
+  device_tokens DeviceToken[]
+  audit_logs    AuditLog[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token_hash  String   @unique
+  expires_at  DateTime
+  revoked     Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  @@index([user_id])
+  @@map("refresh_tokens")
+}
+
+model Property {
+  id           String        @id @default(uuid())
+  name         String
+  address      String
+  image_url    String?
+  owner_id     String
+  owner        User          @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  total_rooms  Int           @default(0)
+  is_active    Boolean       @default(true)
+  firestore_id String?       @unique
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  rooms        Room[]
+  residents    Resident[]
+  staff_members HostelStaff[]
+  rent_cycles  RentCycle[]
+
+  @@index([owner_id])
+  @@map("properties")
+}
+
+model HostelStaff {
+  id         String   @id @default(uuid())
+  hostel_id  String
+  property   Property @relation(fields: [hostel_id], references: [id], onDelete: Cascade)
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role       String   @default("STAFF")
+  created_at DateTime @default(now())
+
+  @@unique([hostel_id, user_id])
+  @@map("hostel_staff")
+}
+
+model Room {
+  id           String      @id @default(uuid())
+  property_id  String
+  property     Property    @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  room_no      String
+  capacity     Int
+  monthly_rent Decimal     @db.Decimal(10, 2)
+  is_active    Boolean     @default(true)
+  firestore_id String?     @unique
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  residents    Resident[]
+  rent_cycles  RentCycle[]
+
+  @@unique([property_id, room_no])
+  @@index([property_id])
+  @@map("rooms")
+}
+
+model Resident {
+  id           String      @id @default(uuid())
+  property_id  String
+  property     Property    @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  room_id      String
+  room         Room        @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  name         String
+  gender       Gender      @default(MALE)
+  email        String?
+  phone        String
+  remarks      String?
+  is_active    Boolean     @default(true)
+  firestore_id String?     @unique
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  rent_cycles  RentCycle[]
+
+  @@index([property_id])
+  @@index([room_id])
+  @@index([phone])
+  @@map("residents")
+}
+
+model RentCycle {
+  id          String        @id @default(uuid())
+  resident_id String
+  resident    Resident      @relation(fields: [resident_id], references: [id], onDelete: Cascade)
+  property_id String
+  property    Property      @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  room_id     String
+  room        Room          @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  start_date  DateTime      @db.Date
+  end_date    DateTime      @db.Date
+  amount      Decimal       @db.Decimal(10, 2)
+  status      PaymentStatus @default(PAID)
+  notes       String?
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+
+  @@index([resident_id])
+  @@index([property_id])
+  @@index([end_date])
+  @@map("rent_cycles")
+}
+
+model DeviceToken {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token      String   @unique
+  platform   Platform @default(ANDROID)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@map("device_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actor_id   String?
+  actor      User?    @relation(fields: [actor_id], references: [id], onDelete: SetNull)
+  action     String
+  entity     String
+  entity_id  String
+  metadata   Json?
+  ip_address String?
+  created_at DateTime @default(now())
+
+  @@index([entity, entity_id])
+  @@index([created_at])
+  @@map("audit_logs")
+}
